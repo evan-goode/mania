@@ -1,6 +1,0 @@
-gmusicapi
-ruamel.yaml
-inquirer
-eyeD3
-progress
-cursor

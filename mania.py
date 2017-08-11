@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 
-import authentication
-import constants
-
 import cursor
 import requests
 import progress.bar
 import argparse
 import os
 import sys
-import ruamel.yaml
 
 import eyed3
 eyed3.log.setLevel("ERROR")
+
+import authentication
+import constants
 
 def log(config, message):
 	if config["quiet"]:
@@ -25,8 +24,10 @@ def sanitize(string):
 	                if symbol not in illegal_symbols])
 
 def search(client, config, media_type, query):
-	search = client.search(query, config["search-count"])
-	return search[f"{media_type}_hits"][0]
+	string = " ".join(query)
+	search = client.search(string, config["search-count"])
+	results = search[f"{media_type}_hits"]
+	return results[0]
 
 def song(client, config, query):
 	log(config, "searching")
@@ -133,7 +134,7 @@ def load_config(args):
 		# why does argparse have to replace hyphens with underscores?
 		# both are valid in the context of dictionary keys
 		config = {key: args.get(key.replace("-", "_")) or file.get(key) or value
-		         for key, value in constants.default_config.items()}
+		          for key, value in constants.default_config.items()}
 		output_directory = os.path.expanduser(config["output-directory"])
 		config["output-directory"] = output_directory
 		return config
@@ -151,12 +152,11 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-c", "--config-file")
 	add_arguments_from_config(constants.default_config, parser)
-	handlers = {
-		"song": song,
-		"album": album,
-		"discography": discography
-	}
-	subparsers = parser.add_subparsers()
+	handlers = {"song": song,
+	            "album": album,
+	            "discography": discography}
+	subparsers = parser.add_subparsers(dest="query")
+	subparsers.required = True
 	for name, handler in handlers.items():
 		subparser = subparsers.add_parser(name)
 		subparser.add_argument("query", nargs="+")
