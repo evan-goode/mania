@@ -18,5 +18,5 @@ setup(
         'progress',
         'cursor',
     ],
-    entry_points = {'console_scripts': ['mania=mania.main:execute'],
+    entry_points = {'console_scripts': ['mania=mania.main:execute']},
 )
