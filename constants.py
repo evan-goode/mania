@@ -19,4 +19,5 @@ default_config = {
 	"quality": "hi",
 	"output-directory": ".",
 	"debug-logging": False,
+	"lucky": False,
 }

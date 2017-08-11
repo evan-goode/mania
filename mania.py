@@ -6,6 +6,7 @@ import progress.bar
 import argparse
 import os
 import sys
+import whaaaaat
 
 import eyed3
 eyed3.log.setLevel("ERROR")
@@ -13,7 +14,7 @@ eyed3.log.setLevel("ERROR")
 import authentication
 import constants
 
-def log(config, message):
+def log(config, message=""):
 	if config["quiet"]:
 		return
 	print(message)
@@ -27,7 +28,49 @@ def search(client, config, media_type, query):
 	string = " ".join(query)
 	search = client.search(string, config["search-count"])
 	results = search[f"{media_type}_hits"]
-	return results[0]
+	if not results:
+		log("no results")
+		sys.exit(2)
+	if config["lucky"]:
+		return results[0]
+	def song_handler(results):
+		choices = []
+		for result in results:
+			title = result["track"]["title"]
+			artist = result["track"]["artist"]
+			album = result["track"]["album"]
+			year = result["track"]["year"]
+			label = f"{title}\n      {artist}\n      {album} ({year})\n"
+			choices.append({"name": label, "value": result, "short": title})
+		return choices
+	def album_handler(results):
+		choices = []
+		for result in results:
+			name = result["album"]["name"]
+			artist = result["album"]["artist"]
+			year = result["album"]["year"]
+			label = f"{name} ({year})\n      {artist}\n"
+			choices.append({"name": label, "value": result, "short": name})
+		return choices
+	def artist_handler(results):
+		choices = []
+		for result in results:
+			name = result["artist"]["name"]
+			label = name
+			choices.append({"name": label, "value": result, "short": name})
+		return choices
+	media_handlers = {"song": song_handler,
+	                  "album": album_handler,
+	                  "artist": artist_handler}
+	choices = media_handlers[media_type](results)
+	questions = [{"type": "list",
+	              "name": "choice",
+                  "message": "select one:",
+                  "choices": choices}]
+	answer = whaaaaat.prompt(questions)
+	if "choice" not in answer:
+		sys.exit(1)
+	return answer["choice"]
 
 def song(client, config, query):
 	log(config, "searching")
@@ -56,13 +99,16 @@ def download_song(client, config, song_object, song_path):
 	with open(temporary_path, mode="wb") as pointer:
 		chunk_size = 4096
 		length = int(request.headers.get("content-length")) / chunk_size
-		bar = progress.bar.IncrementalBar(os.path.basename(final_path),
-		                                  max=length,
-		                                  suffix="%(percent).f%%")
+		bar = None
+		if not config["quiet"]:
+			bar = progress.bar.IncrementalBar(os.path.basename(final_path),
+			                                  max=length,
+			                                  suffix="%(percent).f%%")
 		for chunk in request.iter_content(chunk_size=chunk_size):
 			pointer.write(chunk)
-			bar.next()
-		print()
+			if bar:
+				bar.next()
+		log(config)
 	if not config["skip-metadata"]:
 		log(config, "resolving metadata")
 		request = requests.get(song_object["albumArtRef"][0]["url"])
@@ -89,9 +135,7 @@ def album(client, config, query):
 	log(config, "done")
 
 def download_album(client, config, album_object, album_path):
-	if os.path.isdir(album_path):
-		log(config, f"skipping {os.path.basename(album_path)}, already exists")
-		return
+	total_count = len(album_object['tracks'])
 	for index, song_object in enumerate(album_object["tracks"]):
 		song_title = sanitize(song_object["title"])
 		song_id = song_object["storeId"]
@@ -99,7 +143,7 @@ def download_album(client, config, album_object, album_path):
 		song_track_number = str(song_object["trackNumber"]).zfill(padding)
 		song_file_name = f"{song_track_number} - {song_title}"
 		song_path = "/".join([album_path, song_file_name])
-		print(f"downloading {index + 1} of {len(album_object['tracks'])}")
+		log(config, f"downloading {index + 1} of {total_count} songs")
 		# numbering starts at zero, Dijkstra said, it'll be better, he said
 		download_song(client, config, song_object, song_path)
 
@@ -112,11 +156,13 @@ def discography(client, config, query):
 	                                       max_top_tracks=0,
 	                                       max_rel_artist=0)
 	artist_name = sanitize(artist_object["name"])
+	total_count = len(artist_object['albums'])
 	for index, lite_album_object in enumerate(artist_object["albums"]):
 		album_id = lite_album_object["albumId"]
 		album_object = client.get_album_info(album_id, include_tracks=True)
 		album_title = sanitize(album_object["name"])
 		path = "/".join([config["output-directory"], artist_name, album_title])
+		log(config, f"downloading {index + 1} of {total_count} albums")
 		download_album(client, config, album_object, path)
 	log(config, "done")
 
@@ -166,13 +212,19 @@ def main():
 	parsed_args = parser.parse_args()
 	args = vars(parsed_args)
 	config = load_config(args)
+
 	log(config, "authenticating")
 	client = authentication.authenticate(config)
+
 	parsed_args.func(client, config, args["query"])
 
-try:
-	main()
-except KeyboardInterrupt:
-	sys.exit(1)
-finally:
-	cursor.show() # issues with progress?
+def wrapper():
+	try:
+		main()
+	except KeyboardInterrupt:
+		sys.exit(1)
+	finally:
+		cursor.show() # issues with progress?
+
+if __name__ == "__main__":
+	wrapper()

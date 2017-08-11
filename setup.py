@@ -12,9 +12,9 @@ setup(
     py_modules=["mania"],
     install_requires=['gmusicapi',
                       'ruamel.yaml',
-                      'inquirer',
+                      'whaaaaat',
                       'eyeD3',
                       'progress',
                       'cursor'],
-    entry_points={'console_scripts': ['mania=mania:main']},
+    entry_points={'console_scripts': ['mania=mania:wrapper']},
 )
