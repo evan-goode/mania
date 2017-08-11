@@ -11,8 +11,8 @@ import whaaaaat
 import eyed3
 eyed3.log.setLevel("ERROR")
 
-import authentication
-import constants
+from mania import authentication
+from mania import constants
 
 def log(config, message=""):
 	if config["quiet"]:

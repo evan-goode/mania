@@ -9,7 +9,7 @@ setup(
     author='Evan Goode',
     author_email='mail@evangoo.de',
     license='The Unlicense',
-    py_modules=["mania"],
+    packages=find_packages(),
     install_requires=['gmusicapi',
                       'ruamel.yaml',
                       'whaaaaat',
