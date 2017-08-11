@@ -78,7 +78,6 @@ def song(client, config, query):
 
 	path = "/".join([config["output-directory"], song_title])
 	download_song(client, config, song_object["track"], path)
-	log(config, "Done!")
 
 def download_song(client, config, song_object, song_path):
 	temporary_path = ".".join([song_path, constants.temporary_extension])
