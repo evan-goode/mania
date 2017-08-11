@@ -144,7 +144,6 @@ def download_album(client, config, album_object, album_path):
 		download_song(client, config, song_object, song_path)
 
 def discography(client, config, query):
-	log(config, "searching")
 	lite_artist_object = search(client, config, "artist", query)
 	artist_id = lite_artist_object["artist"]["artistId"]
 	artist_object = client.get_artist_info(artist_id,
