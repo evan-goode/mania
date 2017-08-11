@@ -1,0 +1,1 @@
+from mania import main

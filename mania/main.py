@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import cursor
 import requests
 import progress.bar
@@ -218,13 +216,10 @@ def main():
 
 	parsed_args.func(client, config, args["query"])
 
-def wrapper():
+def execute():
 	try:
 		main()
 	except KeyboardInterrupt:
 		sys.exit(1)
 	finally:
-		cursor.show() # issues with progress?
-
-if __name__ == "__main__":
-	wrapper()
+		cursor.show()
