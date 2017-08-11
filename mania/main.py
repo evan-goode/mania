@@ -12,15 +12,21 @@ eyed3.log.setLevel("ERROR")
 from mania import authentication
 from mania import constants
 
-def log(config, message=""):
+def log(config, message="", indent=0):
 	if config["quiet"]:
 		return
-	print(message)
+	print(constants.indent * indent + message)
 
-def sanitize(string):
-	illegal_symbols = ["/"]
-	return "".join([symbol for symbol in string
-	                if symbol not in illegal_symbols])
+def sanitize(config, string):
+	if not config["nice-format"]:
+		illegal_symbols = ["/"]
+		return "".join([symbol for symbol in string
+		                if symbol not in illegal_symbols])
+	alphanumeric = "".join([character for character in string
+	                        if character.isalnum() or character in [" ", "-"]])
+	hyphenated = alphanumeric.replace(" ", "-")
+	return "-".join([word for word in hyphenated.split("-")
+	                if word]).lower()
 
 def search(client, config, media_type, query):
 	log(config, "Searching...")
@@ -39,7 +45,8 @@ def search(client, config, media_type, query):
 			artist = result["track"]["artist"]
 			album = result["track"]["album"]
 			year = result["track"]["year"]
-			label = f"{title}\n      {artist}\n      {album} ({year})\n"
+			indent = constants.indent + " " * 3
+			label = f"{title}\n{indent}{artist}\n{indent}{album} ({year})\n"
 			choices.append({"name": label, "value": result, "short": title})
 		return choices
 	def album_handler(results):
@@ -48,7 +55,8 @@ def search(client, config, media_type, query):
 			name = result["album"]["name"]
 			artist = result["album"]["artist"]
 			year = result["album"]["year"]
-			label = f"{name} ({year})\n      {artist}\n"
+			indent = constants.indent + " " * 3
+			label = f"{name} ({year})\n{indent}{artist}\n"
 			choices.append({"name": label, "value": result, "short": name})
 		return choices
 	def artist_handler(results):
@@ -73,17 +81,19 @@ def search(client, config, media_type, query):
 
 def song(client, config, query):
 	song_object = search(client, config, "song", query)
-	song_title = sanitize(song_object["track"]["title"])
+	song_title = sanitize(config, song_object["track"]["title"])
 	song_id = song_object["track"]["storeId"]
 
 	path = "/".join([config["output-directory"], song_title])
 	download_song(client, config, song_object["track"], path)
 
-def download_song(client, config, song_object, song_path):
+def download_song(client, config, song_object, song_path, indent=0):
 	temporary_path = ".".join([song_path, constants.temporary_extension])
 	final_path = ".".join([song_path, constants.final_extension])
 	if os.path.isfile(final_path):
-		log(config, f"Skipping {os.path.basename(final_path)}; it already exists.")
+		log(config,
+		    f"Skipping {os.path.basename(final_path)}; it already exists.",
+		    indent=indent)
 		return
 	song_id = song_object["storeId"]
 	stream_url = client.get_stream_url(song_id, quality=config["quality"])
@@ -95,7 +105,8 @@ def download_song(client, config, song_object, song_path):
 		length = int(request.headers.get("content-length")) / chunk_size
 		bar = None
 		if not config["quiet"]:
-			bar = progress.bar.IncrementalBar(os.path.basename(final_path),
+			bar = progress.bar.IncrementalBar(constants.indent * indent +
+			                                  os.path.basename(final_path),
 			                                  max=length,
 			                                  suffix="%(percent).f%%")
 		for chunk in request.iter_content(chunk_size=chunk_size):
@@ -104,7 +115,7 @@ def download_song(client, config, song_object, song_path):
 				bar.next()
 		log(config)
 	if not config["skip-metadata"]:
-		log(config, "Resolving metadata...")
+		log(config, "Resolving metadata...", indent=indent)
 		request = requests.get(song_object["albumArtRef"][0]["url"])
 		file = eyed3.load(temporary_path)
 		file.initTag()
@@ -117,7 +128,7 @@ def download_song(client, config, song_object, song_path):
 		file.tag.images.set(3, request.content, "image/jpeg")
 		file.tag.save()
 	if config["increment-playcount"]:
-        log(config, "Incrementing playcount...")
+		log(config, "Incrementing playcount...", indent=indent)
 		client.increment_song_playcount(song_object["storeId"])
 	os.rename(temporary_path, final_path)
 
@@ -125,22 +136,25 @@ def album(client, config, query):
 	lite_album_object = search(client, config, "album", query)
 	album_id = lite_album_object["album"]["albumId"]
 	album_object = client.get_album_info(album_id, include_tracks=True)
-	album_title = sanitize(album_object["name"])
+	album_title = sanitize(config, album_object["name"])
 	path = "/".join([config["output-directory"], album_title])
 	download_album(client, config, album_object, path)
 
-def download_album(client, config, album_object, album_path):
+def download_album(client, config, album_object, album_path, indent=0):
 	total_count = len(album_object['tracks'])
 	for index, song_object in enumerate(album_object["tracks"]):
-		song_title = sanitize(song_object["title"])
+		song_title = sanitize(config, song_object["title"])
 		song_id = song_object["storeId"]
 		padding = constants.track_digit_padding
 		song_track_number = str(song_object["trackNumber"]).zfill(padding)
-		song_file_name = f"{song_track_number} - {song_title}"
+		song_file_name = sanitize(config, f"{song_track_number} - {song_title}")
 		song_path = "/".join([album_path, song_file_name])
-		log(config, f"Downloading {index + 1} of {total_count} songs...")
+		display_title = song_object["title"]
+		log_string = " ".join([f'Downloading "{display_title}"',
+		                       f"({index + 1} of {total_count} song(s))..."])
+		log(config, log_string, indent=indent)
 		# numbering starts at zero, Dijkstra said, it'll be better, he said
-		download_song(client, config, song_object, song_path)
+		download_song(client, config, song_object, song_path, indent=indent + 1)
 
 def discography(client, config, query):
 	lite_artist_object = search(client, config, "artist", query)
@@ -149,15 +163,18 @@ def discography(client, config, query):
 	                                       include_albums=True,
 	                                       max_top_tracks=0,
 	                                       max_rel_artist=0)
-	artist_name = sanitize(artist_object["name"])
+	artist_name = sanitize(config, artist_object["name"])
 	total_count = len(artist_object['albums'])
 	for index, lite_album_object in enumerate(artist_object["albums"]):
 		album_id = lite_album_object["albumId"]
 		album_object = client.get_album_info(album_id, include_tracks=True)
-		album_title = sanitize(album_object["name"])
-		path = "/".join([config["output-directory"], artist_name, album_title])
-		log(config, f"Downloading {index + 1} of {total_count} albums...")
-		download_album(client, config, album_object, path)
+		album_name = sanitize(config, album_object["name"])
+		path = "/".join([config["output-directory"], artist_name, album_name])
+		display_name = album_object["name"]
+		log_string = " ".join([f'Downloading "{display_name}"',
+		                       f"({index + 1} of {total_count} album(s))..."])
+		log(config, log_string)
+		download_album(client, config, album_object, path, indent=1)
 
 def load_config(args):
 	def initialize(config_file):
