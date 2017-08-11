@@ -23,11 +23,12 @@ def sanitize(string):
 	                if symbol not in illegal_symbols])
 
 def search(client, config, media_type, query):
+	log(config, "Searching...")
 	string = " ".join(query)
 	search = client.search(string, config["search-count"])
 	results = search[f"{media_type}_hits"]
 	if not results:
-		log("no results")
+		log(config, "No results found.")
 		sys.exit(2)
 	if config["lucky"]:
 		return results[0]
@@ -63,7 +64,7 @@ def search(client, config, media_type, query):
 	choices = media_handlers[media_type](results)
 	questions = [{"type": "list",
 	              "name": "choice",
-                  "message": "select one:",
+                  "message": "Select one:",
                   "choices": choices}]
 	answer = whaaaaat.prompt(questions)
 	if "choice" not in answer:
@@ -71,21 +72,19 @@ def search(client, config, media_type, query):
 	return answer["choice"]
 
 def song(client, config, query):
-	log(config, "searching")
-
 	song_object = search(client, config, "song", query)
 	song_title = sanitize(song_object["track"]["title"])
 	song_id = song_object["track"]["storeId"]
 
 	path = "/".join([config["output-directory"], song_title])
 	download_song(client, config, song_object["track"], path)
-	log(config, "done")
+	log(config, "Done!")
 
 def download_song(client, config, song_object, song_path):
 	temporary_path = ".".join([song_path, constants.temporary_extension])
 	final_path = ".".join([song_path, constants.final_extension])
 	if os.path.isfile(final_path):
-		log(config, f"skipping {os.path.basename(final_path)}, already exists")
+		log(config, f"Skipping {os.path.basename(final_path)}; it already exists.")
 		return
 	song_id = song_object["storeId"]
 	if config["increment-playcount"]:
@@ -108,7 +107,7 @@ def download_song(client, config, song_object, song_path):
 				bar.next()
 		log(config)
 	if not config["skip-metadata"]:
-		log(config, "resolving metadata")
+		log(config, "Resolving metadata...")
 		request = requests.get(song_object["albumArtRef"][0]["url"])
 		file = eyed3.load(temporary_path)
 		file.initTag()
@@ -123,14 +122,12 @@ def download_song(client, config, song_object, song_path):
 	os.rename(temporary_path, final_path)
 
 def album(client, config, query):
-	log(config, "searching")
 	lite_album_object = search(client, config, "album", query)
 	album_id = lite_album_object["album"]["albumId"]
 	album_object = client.get_album_info(album_id, include_tracks=True)
 	album_title = sanitize(album_object["name"])
 	path = "/".join([config["output-directory"], album_title])
 	download_album(client, config, album_object, path)
-	log(config, "done")
 
 def download_album(client, config, album_object, album_path):
 	total_count = len(album_object['tracks'])
@@ -141,7 +138,7 @@ def download_album(client, config, album_object, album_path):
 		song_track_number = str(song_object["trackNumber"]).zfill(padding)
 		song_file_name = f"{song_track_number} - {song_title}"
 		song_path = "/".join([album_path, song_file_name])
-		log(config, f"downloading {index + 1} of {total_count} songs")
+		log(config, f"Downloading {index + 1} of {total_count} songs...")
 		# numbering starts at zero, Dijkstra said, it'll be better, he said
 		download_song(client, config, song_object, song_path)
 
@@ -160,9 +157,8 @@ def discography(client, config, query):
 		album_object = client.get_album_info(album_id, include_tracks=True)
 		album_title = sanitize(album_object["name"])
 		path = "/".join([config["output-directory"], artist_name, album_title])
-		log(config, f"downloading {index + 1} of {total_count} albums")
+		log(config, f"Downloading {index + 1} of {total_count} albums...")
 		download_album(client, config, album_object, path)
-	log(config, "done")
 
 def load_config(args):
 	def initialize(config_file):
@@ -211,10 +207,11 @@ def main():
 	args = vars(parsed_args)
 	config = load_config(args)
 
-	log(config, "authenticating")
+	log(config, "Authenticating...")
 	client = authentication.authenticate(config)
 
 	parsed_args.func(client, config, args["query"])
+	log(config, "Done!")
 
 def execute():
 	try:
