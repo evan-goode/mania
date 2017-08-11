@@ -87,8 +87,6 @@ def download_song(client, config, song_object, song_path):
 		log(config, f"Skipping {os.path.basename(final_path)}; it already exists.")
 		return
 	song_id = song_object["storeId"]
-	if config["increment-playcount"]:
-		client.increment_song_playcount(song_object["storeId"])
 	stream_url = client.get_stream_url(song_id, quality=config["quality"])
 	os.makedirs(os.path.dirname(final_path), exist_ok=True)
 	request = requests.get(stream_url, stream=True)
@@ -119,6 +117,9 @@ def download_song(client, config, song_object, song_path):
 		file.tag.genre = song_object["genre"]
 		file.tag.images.set(3, request.content, "image/jpeg")
 		file.tag.save()
+	if config["increment-playcount"]:
+        log(config, "Incrementing playcount...")
+		client.increment_song_playcount(song_object["storeId"])
 	os.rename(temporary_path, final_path)
 
 def album(client, config, query):
