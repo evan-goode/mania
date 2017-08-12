@@ -6,7 +6,7 @@ Mania doesn't work miracles; it still requires a Google Play Music subscription,
 Use at your own risk.
 
 ## Installation :arrow_down:
-_Possibly coming soon to [PyPI](https://pypi.python.org/pypi)!_
+_Possibly coming soon to a [PyPI](https://pypi.python.org/pypi) near you!_
 
 Mania requires Python 3.6 or higher. Support for older versions isn't on the roadmap, but feel free to PR. I don't think much would need to be changed.
 
