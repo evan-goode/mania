@@ -32,6 +32,7 @@ mania song fake plastic trees --lucky
 
 ## Notes :memo:
 - As far as I know, Mania files are not watermarked, but Google could change their back end at any time without notice. Before sharing Mania files publicly, you may want to compare them with the same songs downloaded using other accounts.
+- Someone might want this taken down someday. Feel free to mirror on Bitbucket, SourceForge, some sketchy torrent site, wherever.
 
 ## Configuration :wrench:
 Every option (except `--config-file`, of course) can be specified either as a command-line argument (by prefixing it with `--`), or using a YAML configuration file. 
