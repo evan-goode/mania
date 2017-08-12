@@ -47,7 +47,7 @@ To point Mania to a different configuration file, use `--config-file <file>`
 - `nice-format`: make file and directory names a little nicer. "Maxwell's Silver Hammer (Remastered).mp3" becomes "maxwells-silver-hammer-remastered.mp3". Default value is `false`.
 - `android-id`: refer to the [gmusicapi documentation](http://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html?highlight=android_id#gmusicapi.clients.Mobileclient.login). Default value is `null`.
 - `skip-metadata`: don't download album art or set ID3 tags. Not sure why someone would want this. Default value is `false`.
-- `increment-playcount`: increment each song's `playcount` variable by one after downloading. Google may use this variable to decide how much artists get paid. It's not clear. Default value is `false`.
+- `increment-playcount`: increment each song's `playcount` variable by one after downloading. Google may use this variable to decide how much artists get paid. It's not clear. Default value is `true`.
 - `search-count`: how many results to include in the search. Default value is `8`.
 - `quality`: refer to the [gmusicapi documentation](http://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html?highlight=quality#gmusicapi.clients.Mobileclient.get_stream_url). Default value is `hi`. Possible values are `hi`, `med`, and `low`.
 - `output-directory`: where to put downloaded music. Default value is `.` (the directory from which Mania was run).
