@@ -197,8 +197,6 @@ def load_config(args):
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("-c", "--config-file")
-	add_arguments_from_config(constants.default_config, parser)
 	handlers = {"song": song,
 	            "album": album,
 	            "discography": discography}
@@ -207,13 +205,14 @@ def main():
 	for name, handler in handlers.items():
 		subparser = subparsers.add_parser(name)
 		subparser.add_argument("query", nargs="+")
-		for key, value in config.items():
+		for key, value in constants.default_config.items():
 			arguments = {}
 			if type(value) == bool:
 				arguments["action"] = "store_true"
 			else:
 				arguments["nargs"] = "?"
 			subparser.add_argument(f"--{key}", **arguments)
+		subparser.add_argument("--config-file")
 		subparser.set_defaults(func=handler)
 
 	parsed_args = parser.parse_args()

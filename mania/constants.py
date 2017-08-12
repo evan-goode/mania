@@ -16,7 +16,7 @@ default_config = {
 	"nice-format": False,
 	"android-id": None,
 	"skip-metadata": False,
-	"increment-playcount": False,
+	"increment-playcount": True,
 	"search-count": 8,
 	"quality": "hi",
 	"output-directory": ".",
