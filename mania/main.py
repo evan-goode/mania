@@ -141,14 +141,31 @@ def album(client, config, query):
 	download_album(client, config, album_object, path)
 
 def download_album(client, config, album_object, album_path, indent=0):
-	total_count = len(album_object['tracks'])
-	for index, song_object in enumerate(album_object["tracks"]):
+	tracks = album_object["tracks"]
+	total_count = len(tracks)
+	track_count = max(tracks, key=lambda track: track["trackNumber"])["trackNumber"]
+	disc_count = max(tracks, key=lambda track: track["discNumber"])["discNumber"]
+	track_digits = len(str(track_count))
+	disc_digits = len(str(disc_count))
+
+	for index, song_object in enumerate(tracks):
 		song_title = sanitize(config, song_object["title"])
 		song_id = song_object["storeId"]
-		padding = constants.track_digit_padding
-		song_track_number = str(song_object["trackNumber"]).zfill(padding)
-		song_file_name = sanitize(config, f"{song_track_number} - {song_title}")
-		song_path = "/".join([album_path, song_file_name])
+
+		song_file_name = None
+		if track_count > 1:
+			song_track_number = str(song_object["trackNumber"]).zfill(track_digits)
+			song_file_name = sanitize(config, f"{song_track_number} - {song_title}")
+		else:
+			song_file_name = sanitize(config, song_title)
+
+		song_path = None
+		if disc_count > 1:
+			disc_name = sanitize(config, f"Disc {str(song_object['discNumber']).zfill(disc_digits)}")
+			song_path = "/".join([album_path, disc_name, song_file_name])
+		else:
+			song_path = "/".join([album_path, song_file_name])
+
 		display_title = song_object["title"]
 		log_string = " ".join([f'Downloading "{display_title}"',
 		                       f"({index + 1} of {total_count} song(s))..."])
@@ -184,13 +201,17 @@ def load_config(args):
 			with open(config_file, "w") as config_pointer:
 				constants.yaml.dump(constants.default_config, config_pointer)
 		return config_file
-	config_file = args["config_file"] or initialize(constants.default_config)
+	config_file = args["config-file"] or initialize(constants.default_config)
 	with open(config_file) as config_pointer:
 		file = constants.yaml.load(config_pointer) or {}
-		# why does argparse have to replace hyphens with underscores?
-		# both are valid in the context of dictionary keys
-		config = {key: args.get(key.replace("-", "_")) or file.get(key) or value
-		          for key, value in constants.default_config.items()}
+		def resolve(from_args, from_file, default):
+			if from_args != None:
+				return from_args
+			if from_file != None:
+				return from_file
+			return default
+		config = {key: resolve(args.get(key), file.get(key), default)
+		          for key, default in constants.default_config.items()}
 		output_directory = os.path.expanduser(config["output-directory"])
 		config["output-directory"] = output_directory
 		return config
@@ -206,13 +227,13 @@ def main():
 		subparser = subparsers.add_parser(name)
 		subparser.add_argument("query", nargs="+")
 		for key, value in constants.default_config.items():
-			arguments = {}
 			if type(value) == bool:
-				arguments["action"] = "store_true"
-			else:
-				arguments["nargs"] = "?"
-			subparser.add_argument(f"--{key}", **arguments)
-		subparser.add_argument("--config-file")
+				boolean = subparser.add_mutually_exclusive_group()
+				boolean.add_argument(f"--{key}", action="store_true", dest=key)
+				boolean.add_argument(f"--no-{key}", action="store_false", dest=key)
+				continue
+			subparser.add_argument(f"--{key}", nargs="?", dest=key)
+		subparser.add_argument("--config-file", dest="config-file")
 		subparser.set_defaults(func=handler)
 
 	parsed_args = parser.parse_args()

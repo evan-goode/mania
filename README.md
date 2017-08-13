@@ -35,7 +35,7 @@ mania song fake plastic trees --lucky
 - Someone might want this taken down someday. Feel free to mirror on Bitbucket, SourceForge, some sketchy torrent site, wherever.
 
 ## Configuration :wrench:
-Every option (except `--config-file`, of course) can be specified either as a command-line argument (by prefixing it with `--`), or using a YAML configuration file. 
+Every option (except `--config-file`) can be specified either as a command-line argument or using a YAML configuration file. On the command line, prefix the option with `--`, or, when setting a boolean to false, `--no-`.
 
 When it's first run, Mania creates `~/config/mania/config.yaml` and populates it with some default values. For more information on the YAML format, see http://docs.ansible.com/ansible/latest/YAMLSyntax.html.
 

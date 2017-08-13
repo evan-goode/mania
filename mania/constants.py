@@ -6,7 +6,6 @@ yaml.default_flow_style = False
 
 config_file = os.path.expanduser("~/.config/mania/config.yaml")
 final_extension = "mp3"
-track_digit_padding = 2
 indent = "  "
 temporary_extension = "part.mp3"
 default_config = {
