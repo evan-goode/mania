@@ -44,7 +44,7 @@ def search(client, config, media_type, query):
 			title = result["track"]["title"]
 			artist = result["track"]["artist"]
 			album = result["track"]["album"]
-			year = result["track"]["year"]
+			year = result["track"].get("year", "Unknown year")
 			indent = constants.indent + " " * 3
 			label = f"{title}\n{indent}{artist}\n{indent}{album} ({year})\n"
 			choices.append({"name": label, "value": result, "short": title})
@@ -54,7 +54,7 @@ def search(client, config, media_type, query):
 		for result in results:
 			name = result["album"]["name"]
 			artist = result["album"]["artist"]
-			year = result["album"]["year"]
+			year = result["album"].get("year", "Unknown year")
 			indent = constants.indent + " " * 3
 			label = f"{name} ({year})\n{indent}{artist}\n"
 			choices.append({"name": label, "value": result, "short": name})

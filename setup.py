@@ -12,7 +12,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'gmusicapi',
-        'ruamel.yaml',
+        'ruamel.yaml>=0.15',
         'whaaaaat',
         'eyeD3',
         'progress',
