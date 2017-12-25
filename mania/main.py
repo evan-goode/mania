@@ -143,8 +143,10 @@ def album(client, config, query):
 def download_album(client, config, album_object, album_path, indent=0):
 	tracks = album_object["tracks"]
 	total_count = len(tracks)
-	track_count = max(tracks, key=lambda track: track["trackNumber"])["trackNumber"]
-	disc_count = max(tracks, key=lambda track: track["discNumber"])["discNumber"]
+	track_count = max(tracks,
+	                  key=lambda track: track["trackNumber"])["trackNumber"]
+	disc_count = max(tracks,
+	                 key=lambda track: track["discNumber"])["discNumber"]
 	track_digits = len(str(track_count))
 	disc_digits = len(str(disc_count))
 
@@ -154,14 +156,17 @@ def download_album(client, config, album_object, album_path, indent=0):
 
 		song_file_name = None
 		if track_count > 1:
-			song_track_number = str(song_object["trackNumber"]).zfill(track_digits)
-			song_file_name = sanitize(config, f"{song_track_number} - {song_title}")
+			bare_track_number = song_object["trackNumber"]
+			raw_track_number = str(raw_track-number).zfill(track_digits)
+			song_file_name = sanitize(config,
+			                          f"{song_track_number} - {song_title}")
 		else:
 			song_file_name = sanitize(config, song_title)
 
 		song_path = None
 		if disc_count > 1:
-			disc_name = sanitize(config, f"Disc {str(song_object['discNumber']).zfill(disc_digits)}")
+			disc_number = str(song_object['discNumber']).zfill(disc_digits)
+			disc_name = sanitize(config, f"Disc {disc_number}")
 			song_path = "/".join([album_path, disc_name, song_file_name])
 		else:
 			song_path = "/".join([album_path, song_file_name])
@@ -170,7 +175,6 @@ def download_album(client, config, album_object, album_path, indent=0):
 		log_string = " ".join([f'Downloading "{display_title}"',
 		                       f"({index + 1} of {total_count} song(s))..."])
 		log(config, log_string, indent=indent)
-		# numbering starts at zero, Dijkstra said, it'll be better, he said
 		download_song(client, config, song_object, song_path, indent=indent + 1)
 
 def discography(client, config, query):
@@ -227,12 +231,21 @@ def main():
 		subparser = subparsers.add_parser(name)
 		subparser.add_argument("query", nargs="+")
 		for key, value in constants.default_config.items():
+
 			if type(value) == bool:
 				boolean = subparser.add_mutually_exclusive_group()
-				boolean.add_argument(f"--{key}", action="store_true", dest=key)
-				boolean.add_argument(f"--no-{key}", action="store_false", dest=key)
-				continue
-			subparser.add_argument(f"--{key}", nargs="?", dest=key)
+				# we don't use store_true/store_false here because we need the
+				# default value to be None, not False/True.
+				boolean.add_argument(f"--{key}",
+				                     action="store_const",
+				                     const=True,
+				                     dest=key)
+				boolean.add_argument(f"--no-{key}",
+				                     action="store_const",
+				                     const=False,
+				                     dest=key)
+			else:
+				subparser.add_argument(f"--{key}", nargs="?", dest=key)
 		subparser.add_argument("--config-file", dest="config-file")
 		subparser.set_defaults(func=handler)
 

@@ -25,7 +25,7 @@ mania album the dark side of the moon
 mania discography pink floyd
 ```
 
-Options go anywhere _after_ the subcommand. For example, to automatically select the top hit:
+Options go anywhere _after_ the verb. For example, to automatically select the top hit:
 ```
 mania song fake plastic trees --lucky
 ```
@@ -37,7 +37,7 @@ mania song fake plastic trees --lucky
 ## Configuration :wrench:
 Every option (except `--config-file`) can be specified either as a command-line argument or using a YAML configuration file. On the command line, prefix the option with `--`, or, when setting a boolean to false, `--no-`.
 
-When it's first run, Mania creates `~/config/mania/config.yaml` and populates it with some default values. For more information on the YAML format, see http://docs.ansible.com/ansible/latest/YAMLSyntax.html.
+The first time it is run, Mania populates `~/config/mania/config.yaml` with some default values. For more information on the YAML format, see http://docs.ansible.com/ansible/latest/YAMLSyntax.html.
 
 To point Mania to a different configuration file, use `--config-file <file>`
 
