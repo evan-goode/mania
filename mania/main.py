@@ -156,8 +156,8 @@ def download_album(client, config, album_object, album_path, indent=0):
 
 		song_file_name = None
 		if track_count > 1:
-			bare_track_number = song_object["trackNumber"]
-			raw_track_number = str(raw_track-number).zfill(track_digits)
+			raw_track_number = song_object["trackNumber"]
+			song_track_number = str(raw_track_number).zfill(track_digits)
 			song_file_name = sanitize(config,
 			                          f"{song_track_number} - {song_title}")
 		else:
