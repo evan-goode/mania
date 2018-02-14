@@ -32,7 +32,7 @@ mania song fake plastic trees --lucky
 
 ## Notes :memo:
 - As far as I know, Mania files are not watermarked, but Google could change their back end at any time without notice. Before sharing Mania files publicly, you may want to compare them with the same songs downloaded using other accounts.
-- Someone might want this taken down someday. Feel free to mirror on Bitbucket, SourceForge, some sketchy torrent site, wherever.
+- Someone might want this taken down someday. Feel free to mirror on Bitbucket, SourceForge, wherever.
 
 ## Configuration :wrench:
 Every option (except `--config-file`) can be specified either as a command-line argument or using a YAML configuration file. On the command line, prefix the option with `--`, or, when setting a boolean to false, `--no-`.
@@ -50,7 +50,7 @@ To point Mania to a different configuration file, use `--config-file <file>`
 - `increment-playcount`: increment each song's `playcount` variable by one after downloading. Google may use this variable to decide how much artists get paid. It's not clear. Default value is `true`.
 - `search-count`: how many results to include in the search. Default value is `8`.
 - `quality`: refer to the [gmusicapi documentation](http://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html?highlight=quality#gmusicapi.clients.Mobileclient.get_stream_url). Default value is `hi`. Possible values are `hi`, `med`, and `low`.
-- `output-directory`: where to put downloaded music. Default value is `.` (the directory from which Mania was run).
+- `output-directory`: where to put downloaded music. Default value is `.` (your working directory when you run Mania).
 - `debug-logging`: enable gmusicapi's debug logging. Default value is `false`.
 - `lucky`: automatically select the top hit. Default value is `false`.
 
