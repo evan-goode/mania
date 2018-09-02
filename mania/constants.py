@@ -1,24 +1,30 @@
 import ruamel.yaml
 import os
 
-yaml = ruamel.yaml.YAML(typ="safe", pure=True)
-yaml.default_flow_style = False
+YAML = ruamel.yaml.YAML(typ="safe", pure=True)
+YAML.default_flow_style = False
 
-config_file = os.path.expanduser("~/.config/mania/config.yaml")
-final_extension = "mp3"
-indent = "  "
-temporary_extension = "part.mp3"
-default_config = {
-	"username": None,
-	"password": None,
-	"quiet": False,
-	"nice-format": False,
-	"android-id": None,
-	"skip-metadata": False,
-	"increment-playcount": True,
-	"search-count": 8,
-	"quality": "hi",
-	"output-directory": ".",
-	"debug-logging": False,
-	"lucky": False,
+CONFIG_FILE = os.path.expanduser("~/.config/mania/config.yaml")
+INDENT = "  "
+TEMPORARY_EXTENSION = "part"
+CHUNK_SIZE = 4096
+DEFAULT_CONFIG = {
+    "google": False,
+    "google-username": None,
+    "google-password": None,
+    "google-android-id": None,
+    "google-quality": "high",
+    "tidal": False,
+    "tidal-username": None,
+    "tidal-password": None,
+    "tidal-quality": "lossless",
+    "lucky": False,
+    "quiet": False,
+    "nice-format": False,
+    "full-structure": False,
+    "skip-metadata": False,
+    "increment-play-count": True,
+    "search-count": 8,
+    "output-directory": ".",
+    "debug-logging": False,
 }
