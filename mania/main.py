@@ -10,6 +10,8 @@ from . import constants
 from . import bridge
 from . import metadata
 
+print("zoop")
+
 def log(config, message="", indent=0):
     if not config["quiet"]:
         print(constants.INDENT * indent + message)
@@ -104,7 +106,16 @@ def download_song(client, config, song, song_path, indent=0):
             f"Skipping {os.path.basename(final_path)}; it already exists.",
             indent=indent)
         return
-    media_url = client.get_media_url(song)
+    try:
+        media_url = client.get_media_url(song)
+    except requests.exceptions.HTTPError as error:
+        if error.response.status_code == 401:
+            log(config,
+                f"Skipping {os.path.basename(final_path)}; received HTTP 401 Unauthorized",
+                indent=indent)
+            return
+        else:
+            raise error
     os.makedirs(os.path.dirname(final_path), exist_ok=True)
     request = requests.get(media_url, stream=True)
     request.raise_for_status()
