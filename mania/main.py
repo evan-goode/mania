@@ -10,8 +10,6 @@ from . import constants
 from . import bridge
 from . import metadata
 
-print("zoop")
-
 def log(config, message="", indent=0):
     if not config["quiet"]:
         print(constants.INDENT * indent + message)
