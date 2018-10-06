@@ -3,6 +3,9 @@ from mutagen.mp4 import MP4, MP4Cover as MP4Picture
 from mutagen.id3 import ID3, APIC as ID3Picture
 from mutagen.flac import FLAC, Picture as FLACPicture
 
+class InvalidFileError(Exception):
+    pass
+
 def resolve_mp3_metadata(song, path, picture):
     tagger = mutagen.File(path, easy=True)
     tagger.add_tags()
@@ -55,7 +58,10 @@ def resolve_aac_metadata(song, path, picture):
     tagger.save()
 
 def resolve_flac_metadata(song, path, picture):
-    tagger = FLAC(path)
+    try:
+        tagger = FLAC(path)
+    except mutagen.flac.FLACNoHeaderError:
+        raise InvalidFileError()
     tagger["title"] = song.name
     tagger["album"] = song.album.name
     tagger["artist"] = song.artist.name

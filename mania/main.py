@@ -5,6 +5,7 @@ import cursor
 import requests
 import progress.bar
 import whaaaaat
+import mutagen
 
 from . import constants
 from . import bridge
@@ -132,7 +133,12 @@ def download_song(client, config, song, song_path, indent=0):
                 progress_bar.next()
         log(config)
     if not config["skip-metadata"]:
-        resolve_metadata(config, song, temporary_path, indent)
+        try:
+            resolve_metadata(config, song, temporary_path, indent)
+        except metadata.InvalidFileError:
+            log(config, f"Skipping {os.path.basename(final_path)}; received invalid file")
+            os.remove(temporary_path)
+            return
     if config["increment-play-count"] and getattr(song.provider, "increment_play_count", False):
         log(config, "Incrementing play count...", indent=indent)
         song.provider.increment_play_count(song)
