@@ -5,7 +5,6 @@ import cursor
 import requests
 import progress.bar
 import whaaaaat
-import mutagen
 
 from . import constants
 from . import bridge
@@ -113,8 +112,7 @@ def download_song(client, config, song, song_path, indent=0):
                 f"Skipping {os.path.basename(final_path)}; received HTTP 401 Unauthorized",
                 indent=indent)
             return
-        else:
-            raise error
+        raise error
     os.makedirs(os.path.dirname(final_path), exist_ok=True)
     request = requests.get(media_url, stream=True)
     request.raise_for_status()
@@ -136,7 +134,9 @@ def download_song(client, config, song, song_path, indent=0):
         try:
             resolve_metadata(config, song, temporary_path, indent)
         except metadata.InvalidFileError:
-            log(config, f"Skipping {os.path.basename(final_path)}; received invalid file")
+            log(config,
+                f"Skipping {os.path.basename(final_path)}; received invalid file",
+                indent=indent)
             os.remove(temporary_path)
             return
     if config["increment-play-count"] and getattr(song.provider, "increment_play_count", False):
