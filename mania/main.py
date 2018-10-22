@@ -1,10 +1,11 @@
 import sys
 import os
+import math
 import argparse
 import cursor
 import requests
-import progress.bar
 import whaaaaat
+from tqdm import tqdm
 
 from . import constants
 from . import bridge
@@ -118,18 +119,12 @@ def download_song(client, config, song, song_path, indent=0):
     request.raise_for_status()
     with open(temporary_path, mode="wb") as pointer:
         chunk_size = constants.CHUNK_SIZE
-        length = int(request.headers.get("content-length")) / chunk_size
-        progress_bar = None
+        iterator = request.iter_content(chunk_size=chunk_size)
         if not config["quiet"]:
-            progress_bar = progress.bar.IncrementalBar(constants.INDENT * indent +
-                                                       os.path.basename(final_path),
-                                                       max=length,
-                                                       suffix="%(percent).f%%")
-        for chunk in request.iter_content(chunk_size=chunk_size):
+            total = math.ceil(int(request.headers.get("content-length")) / chunk_size)
+            iterator = tqdm(iterator, total=total, unit='KiB', unit_scale=True)
+        for chunk in iterator:
             pointer.write(chunk)
-            if progress_bar:
-                progress_bar.next()
-        log(config)
     if not config["skip-metadata"]:
         try:
             resolve_metadata(config, song, temporary_path, indent)

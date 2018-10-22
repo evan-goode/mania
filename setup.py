@@ -13,7 +13,7 @@ setup(
         'gmusicapi',
         'ruamel.yaml>=0.15',
         'whaaaaat',
-        'progress',
+        'tqdm',
         'cursor',
         'mutagen',
         'requests'
