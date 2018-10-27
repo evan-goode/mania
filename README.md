@@ -1,18 +1,14 @@
 # Mania 👻
 
-Mania is a command-line tool for downloading music from streaming services. It currently supports [Google Play Music](https://play.google.com/music) and [TIDAL](https://tidal.com).
-
-Use at your own risk.
+Mania is a command-line tool for downloading music from streaming services. It currently supports [Google Play Music](https://play.google.com/music) and [TIDAL](https://tidal.com). It is intended for educational and private use only, and **not** as a tool for pirating and distributing music.
 
 ## Installation :arrow_down:
-
-_Coming soon to a [PyPI](https://pypi.python.org/pypi) near you!_
-
-Mania requires Python 3.6 or higher. Support for older versions isn't on the roadmap, but feel free to PR. I don't think much would need to be changed.
 
 ```
 pip install --user "https://github.com/evan-goode/mania/archive/master.zip"
 ```
+
+Mania requires Python 3.6 or higher. Support for older versions isn't on the roadmap, but feel free to PR. I don't think much would need to be changed.
 
 Mania has only been tested on macOS and GNU/Linux.
 
