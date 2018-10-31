@@ -16,7 +16,8 @@ setup(
         'tqdm',
         'cursor',
         'mutagen',
-        'requests'
+        'requests',
+        'prompt_toolkit==1.0.15',
     ],
     entry_points={'console_scripts': ['mania=mania.main:execute']},
 )
