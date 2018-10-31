@@ -241,6 +241,7 @@ def load_config(args):
                   for key, default in constants.DEFAULT_CONFIG.items()}
         output_directory = os.path.expanduser(config["output-directory"])
         config["output-directory"] = output_directory
+        config["config-file"] = config_file
         return config
 
 def main():
@@ -286,7 +287,10 @@ def execute():
     try:
         main()
     except KeyboardInterrupt:
-        sys.exit(2)
+        sys.exit(1)
+    except bridge.ProviderException as exception:
+        print(exception)
+        sys.exit(1)
     # except Exception as exception: # pylint: disable=W0703
     #     print(exception, file=sys.stderr)
     #     sys.exit(1)

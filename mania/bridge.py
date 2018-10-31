@@ -5,6 +5,9 @@ import getpass
 from gmusicapi import Mobileclient as GoogleMobileClient
 from . import tidal as tidalapi
 
+class ProviderException(Exception):
+    pass
+
 class Media(ABC):
     def __init__(self, **media):
         self.provider = media["provider"]
@@ -226,7 +229,7 @@ class Bridge(Client):
         if config["google"]:
             self.providers.append(GoogleClient(config))
         if not self.providers:
-            raise Exception("no providers!")
+            raise ProviderException(f"No streaming providers are set up. Configure and enable downloading from Google Play Music, TIDAL, or both in {config['config-file']}.")
     def search(self, query, media_type, count):
         by_provider = [provider.search(query,
                                        media_type,
