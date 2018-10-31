@@ -46,7 +46,7 @@ To point Mania to a different configuration file, use `--config-file <file>`.
 - `tidal-password`: your TIDAL password. Again, if this is not specified, Mania will ask. Default value is `null`.
 - `tidal-quality`: Default value is `lossless`. Possible values are `lossless` (1411 kbps FLAC), `high` (320 kbps AAC), and `low` (96 kbps AAC). Note that `lossless` requires a TIDAL HiFi subscription.
 - `quiet`: don't log any output. Default value is `false`.
-- `nice-format`: rename downloaded material to mv /be kebab-case. "Maxwell's Silver Hammer (Remastered).mp3" becomes "maxwells-silver-hammer-remastered.mp3". Default value is `false`.
+- `nice-format`: rename downloaded material to follow kebab-case. "Maxwell's Silver Hammer (Remastered).mp3" becomes "maxwells-silver-hammer-remastered.mp3". Default value is `false`.
 - `skip-metadata`: don't download cover art or set tags. Not sure why someone would want this. Default value is `false`.
 - `full-structure`: always organize content by artist and album. Default value is `false`.
 - `increment-play-count`: increment each song's "play count" by one after downloading. Currently only applies to Google. Default value is `true`.
