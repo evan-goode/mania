@@ -5,7 +5,7 @@ Mania is a command-line tool for downloading music from streaming services. It c
 ## Installation :arrow_down:
 
 ```
-pip install --user "https://github.com/evan-goode/mania/archive/master.zip"
+pip install --user --upgrade "https://github.com/evan-goode/mania/archive/master.zip"
 ```
 
 Mania requires Python 3.6 or higher. Support for older versions isn't on the roadmap, but feel free to PR. I don't think much would need to be changed.
