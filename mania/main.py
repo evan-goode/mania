@@ -4,11 +4,12 @@ import math
 import argparse
 import cursor
 import requests
-import whaaaaat
+import inquirer
 from tqdm import tqdm
 
 from . import constants
 from . import bridge
+from . import models
 from . import metadata
 
 def log(config, message="", indent=0):
@@ -32,7 +33,7 @@ def search(client, config, media_type, query):
     results = client.search(string, media_type, config["search-count"])
     if not results:
         log(config, "No results found.")
-        sys.exit(2)
+        sys.exit(0)
     if config["lucky"]:
         return results[0]
     def song_handler(results):
@@ -68,18 +69,17 @@ def search(client, config, media_type, query):
             label = f"{name} [{provider}]"
             choices.append({"name": label, "value": result, "short": name})
         return choices
-    media_handlers = {bridge.Song: song_handler,
-                      bridge.Album: album_handler,
-                      bridge.Artist: artist_handler}
+    media_handlers = {models.Song: song_handler,
+                      models.Album: album_handler,
+                      models.Artist: artist_handler}
     choices = media_handlers[media_type](results)
-    questions = [{"type": "list",
-                  "name": "choice",
-                  "message": "Select one:",
-                  "choices": choices}]
-    answer = whaaaaat.prompt(questions)
-    if "choice" not in answer:
+    questions = [inquirer.List("selection",
+                               message="Select one:",
+                               choices=choices)]
+    answer = inquirer.prompt(questions)
+    if "selection" not in answer:
         sys.exit(1)
-    return answer["choice"]
+    return answer["selection"]
 
 def resolve_metadata(config, song, path, indent):
     log(config, "Resolving metadata...", indent=indent)
@@ -92,7 +92,6 @@ def resolve_metadata(config, song, path, indent):
     {
         "mp3": metadata.resolve_mp3_metadata,
         "mp4": metadata.resolve_mp4_metadata,
-        "aac": metadata.resolve_aac_metadata,
         "flac": metadata.resolve_flac_metadata,
     }[song.extension](song, path, picture)
 
@@ -153,7 +152,7 @@ def get_song_path(config, song, track_count=1, disc_count=1):
     return file_name
 
 def handle_song(client, config, query):
-    song = search(client, config, bridge.Song, query)
+    song = search(client, config, models.Song, query)
     path = None
     if config["full-structure"]:
         siblings = client.get_album_songs(song.album)
@@ -172,7 +171,7 @@ def handle_song(client, config, query):
     download_song(client, config, song, path)
 
 def handle_album(client, config, query):
-    album = search(client, config, bridge.Album, query)
+    album = search(client, config, models.Album, query)
     path = None
     if config["full-structure"]:
         path = os.path.join(config["output-directory"],
@@ -204,7 +203,7 @@ def download_album(client, config, album, album_path, indent=0):
         download_song(client, config, song, path, indent=indent + 1)
 
 def handle_discography(client, config, query):
-    artist = search(client, config, bridge.Artist, query)
+    artist = search(client, config, models.Artist, query)
     path = os.path.join(
         config["output-directory"],
         sanitize(config, artist.name))
@@ -288,7 +287,7 @@ def execute():
         main()
     except KeyboardInterrupt:
         sys.exit(1)
-    except bridge.ProviderException as exception:
+    except bridge.NoProvidersException as exception:
         print(exception)
         sys.exit(1)
     # except Exception as exception: # pylint: disable=W0703

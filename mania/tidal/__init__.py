@@ -48,7 +48,6 @@ class Config(object):
 
 
 class Session(object):
-
     def __init__(self, config=Config()):
         self.session_id = None
         self.country_code = None
