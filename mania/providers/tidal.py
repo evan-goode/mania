@@ -102,7 +102,7 @@ class TidalClient(models.Client):
             track_number=tidal_song["trackNumber"],
             disc_number=tidal_song["volumeNumber"],
             extension=("flac"
-                       if self._quality == "lossless" and tidal_song["audioQuality"] == "LOSSLESS"
+                       if self._quality == "lossless" and tidal_song["audioQuality"] in ["LOSSLESS", "HI_RES"]
                        else "mp4"),
         )
     def search(self, query, media_type, count):
