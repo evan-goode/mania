@@ -12,8 +12,8 @@ from . import models
 from . import metadata
 
 # exit codes:
-# 1: graceful, expected exit, but still non-zero
-# 2: unexpected error
+# 1: unexpected error
+# 2: graceful, expected exit, but still non-zero
 
 def log(config, message="", indent=0):
     if not config["quiet"]:
@@ -36,7 +36,7 @@ def search(client, config, media_type, query):
     results = client.search(string, media_type, config["search-count"])
     if not results:
         log(config, "No results found.")
-        sys.exit(1)
+        sys.exit(2)
     if config["lucky"]:
         return results[0]
     def song_handler(results):
@@ -80,7 +80,7 @@ def search(client, config, media_type, query):
         choices=media_handlers[media_type](results)
     ).ask()
     if not answer:
-        sys.exit(1)
+        sys.exit(2)
     return answer
 
 def resolve_metadata(config, song, path, indent):
@@ -300,10 +300,10 @@ def execute():
     try:
         main()
     except KeyboardInterrupt:
-        sys.exit(1)
+        sys.exit(2)
     except bridge.NoProvidersException as exception:
         print(exception)
-        sys.exit(2)
+        sys.exit(1)
     # except Exception as exception: # pylint: disable=W0703
     #     print(exception, file=sys.stderr)
     #     sys.exit(1)
