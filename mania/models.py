@@ -3,14 +3,13 @@ from abc import ABC, abstractmethod
 class Media(ABC):
     def __init__(self, **media):
         self.provider = media["provider"]
-        self.id = media.get("id", None)
-        self.name = media["name"]
+        self.id = media["id"]
 
 class Song(Media):
     def __init__(self, **song):
         super().__init__(**song)
-        self.year = song.get("year", None)
-        self.extension = song.get("extension", None)
+        self.name = song["name"]
+        self.extension = song["extension"]
         self.track_number = song["track_number"]
         self.disc_number = song["disc_number"]
         self.album = song["album"]
@@ -19,13 +18,15 @@ class Song(Media):
 class Album(Media):
     def __init__(self, **album):
         super().__init__(**album)
+        self.name = album["name"]
         self.cover_art_url = album["cover_art_url"]
-        self.year = album.get("year", None)
+        self.year = album["year"]
         self.artist = album["artist"]
 
 class Artist(Media):
     def __init__(self, **artist):
         super().__init__(**artist)
+        self.name = artist["name"]
 
 class Client(ABC):
     @abstractmethod

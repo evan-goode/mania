@@ -13,7 +13,7 @@ API_TOKEN = "pl4Vc0hemlAXD0mN"
 USER_AGENT = "TIDAL_ANDROID/879 okhttp/3.10.0"
 CLIENT_VERSION = "2.10.1"
 DEVICE_TYPE = "TABLET"
-PAGINATE_LIMIT = 50
+MAXIMUM_LIMIT = 50
 CLIENT_UNIQUE_KEY = "kjadsfjkhsadkjhasdkjh" # apparently, this string is arbitrary:
 # https://github.com/lucaslg26/TidalAPI/issues/22
 
@@ -61,53 +61,49 @@ class TidalClient(models.Client):
         items = []
         params = {**{
             "offset": 0,
-            "limit": PAGINATE_LIMIT,
+            "limit": MAXIMUM_LIMIT,
             "deviceType": DEVICE_TYPE,
             "locale": LOCALE,
         }, **(params or {})}
         while True:
-            request = self._request(method, path, params, data).json()
-            items += [item["item"] for item in request["items"]]
-            if len(items) >= request["totalNumberOfItems"]:
+            response = self._request(method, path, params, data).json()
+            items += response["items"]
+            if len(items) >= response["totalNumberOfItems"]:
                 break
             params["offset"] += params["limit"]
         return items
     def tidal_artist_to_artist(self, tidal_artist):
         return models.Artist(
             provider=self,
-            id=tidal_artist.get("id"),
+            id=tidal_artist["id"],
             name=tidal_artist["name"],
         )
     def tidal_album_to_album(self, tidal_album, artist=None):
-        year = (tidal_album["releaseDate"].split("-")[-0]
-                if "releaseDate" in tidal_album else None)
-        cover_art_url = (self._get_cover_art_url(tidal_album["cover"])
-                         if "cover" in tidal_album else None)
-        artist = artist or (self.tidal_artist_to_artist(tidal_album["artists"][0])
-                            if "artists" in tidal_album and tidal_album["artists"] else None)
+        year = tidal_album["releaseDate"].split("-")[0]
+        cover_art_url = self._get_cover_art_url(tidal_album["cover"])
+        artist = artist or self.tidal_artist_to_artist(tidal_album["artists"][0])
         return models.Album(
             provider=self,
-            id=tidal_album.get("id"),
+            id=tidal_album["id"],
             name=tidal_album["title"],
+            artist=artist,
             year=year,
             cover_art_url=cover_art_url,
-            artist=artist
         )
     def tidal_song_to_song(self, tidal_song, album=None):
+        album = album or self.get_album(tidal_song["album"]["id"])
+        artist = self.tidal_artist_to_artist(tidal_song["artists"][0])
         return models.Song(
             provider=self,
             id=tidal_song["id"],
             name=tidal_song["title"],
+            artist=artist,
+            album=album,
             track_number=tidal_song["trackNumber"],
             disc_number=tidal_song["volumeNumber"],
             extension=("flac"
-                       if self._quality == "lossless"
+                       if self._quality == "lossless" and tidal_song["audioQuality"] == "LOSSLESS"
                        else "mp4"),
-            artist=self.tidal_artist_to_artist(tidal_song["artists"][0]),
-            # sometimes, we need to pass in the album ourselves to make sure
-            # albumartist is set consistently. tidal_song.album.artist.name
-            # isn't consistent among songs on the same album, unfortunately.
-            album=album or self.tidal_album_to_album(tidal_song["album"]),
         )
     def search(self, query, media_type, count):
         types, key, resolver = {
@@ -118,7 +114,7 @@ class TidalClient(models.Client):
         results = self._request("GET", "search", params={
             "query": query,
             "types": types,
-            "limit": self._search_count,
+            "limit": min(self._search_count, MAXIMUM_LIMIT),
         }).json()[key]["items"]
         return [resolver(result) for result in results]
     def get_media_url(self, song):
@@ -133,10 +129,13 @@ class TidalClient(models.Client):
             }[self._quality],
         }).json()
         return response["urls"][0]
+    def get_album(self, album_id):
+        album = self._request("GET", f"albums/{album_id}").json()
+        return self.tidal_album_to_album(album)
     def get_album_songs(self, album):
-        songs = self._paginate("GET", f"pages/data/2fbf68c2-dc58-49b1-b1be-6958e66383f3", params={
+        songs = [element["item"] for element in self._paginate("GET", f"pages/data/2fbf68c2-dc58-49b1-b1be-6958e66383f3", params={
             "albumId": album.id,
-        })
+        })]
         return [self.tidal_song_to_song(song, album=album) for song in songs]
     def get_artist_albums(self, artist):
         albums = self._paginate("GET", "pages/data/4b37c74b-f994-45dd-8fca-b7da2694da83", params={

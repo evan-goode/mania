@@ -2,15 +2,18 @@ import sys
 import os
 import math
 import argparse
-import cursor
 import requests
-import inquirer
+import questionary
 from tqdm import tqdm
 
 from . import constants
 from . import bridge
 from . import models
 from . import metadata
+
+# exit codes:
+# 1: graceful, expected exit, but still non-zero
+# 2: unexpected error
 
 def log(config, message="", indent=0):
     if not config["quiet"]:
@@ -33,7 +36,7 @@ def search(client, config, media_type, query):
     results = client.search(string, media_type, config["search-count"])
     if not results:
         log(config, "No results found.")
-        sys.exit(0)
+        sys.exit(1)
     if config["lucky"]:
         return results[0]
     def song_handler(results):
@@ -47,7 +50,7 @@ def search(client, config, media_type, query):
             year = result.year
             label = (f"{name}\n{indent}{artist}\n{indent}{album} ({year}) [{provider}]\n"
                      if year else f"{name}\n{indent}{artist}\n{indent}{album} [{provider}]\n")
-            choices.append({"name": label, "value": result, "short": name})
+            choices.append(questionary.Choice(label, value=result))
         return choices
     def album_handler(results):
         choices = []
@@ -59,7 +62,7 @@ def search(client, config, media_type, query):
             year = result.year
             label = (f"{name} ({year})\n{indent}{artist} [{provider}]\n"
                      if year else f"{name}\n{indent}{artist} [{provider}]\n")
-            choices.append({"name": label, "value": result, "short": name})
+            choices.append(questionary.Choice(label, value=result))
         return choices
     def artist_handler(results):
         choices = []
@@ -67,19 +70,18 @@ def search(client, config, media_type, query):
             provider = result.provider.name
             name = result.name
             label = f"{name} [{provider}]"
-            choices.append({"name": label, "value": result, "short": name})
+            choices.append(questionary.Choice(label, value=result))
         return choices
     media_handlers = {models.Song: song_handler,
                       models.Album: album_handler,
                       models.Artist: artist_handler}
-    choices = media_handlers[media_type](results)
-    questions = [inquirer.List("selection",
-                               message="Select one:",
-                               choices=choices)]
-    answer = inquirer.prompt(questions)
-    if "selection" not in answer:
+    answer = questionary.select(
+        "Select one:",
+        choices=media_handlers[media_type](results)
+    ).ask()
+    if not answer:
         sys.exit(1)
-    return answer["selection"]
+    return answer
 
 def resolve_metadata(config, song, path, indent):
     log(config, "Resolving metadata...", indent=indent)
@@ -95,21 +97,33 @@ def resolve_metadata(config, song, path, indent):
         "flac": metadata.resolve_flac_metadata,
     }[song.extension](song, path, picture)
 
-
 def download_song(client, config, song, song_path, indent=0):
     temporary_path = f"{song_path}.{constants.TEMPORARY_EXTENSION}.{song.extension}"
     final_path = f"{song_path}.{song.extension}"
     if os.path.isfile(final_path):
         log(config,
-            f"Skipping {os.path.basename(final_path)}; it already exists.",
+            f"Skipping download of {os.path.basename(final_path)}; it already exists.",
             indent=indent)
+        if not config["skip-metadata"]:
+            # We try to update metadata even when a song is already downloaded
+            # because more is known about a song while downloading the entire
+            # album, for example the album artist, track number, and disc
+            # number. In the event that a user downloads one song from an album
+            # and then proceeds to download the whole album, that first song's
+            # metadata should be updated to remain consistent with the rest of
+            # the files.
+            log(config, f"Attempting to update metadata...")
+            try:
+                resolve_metadata(config, song, final_path, indent)
+            except metadata.InvalidFileError:
+                log(f"{os.path.basename(final_path)} is invalid.")
         return
     try:
         media_url = client.get_media_url(song)
     except requests.exceptions.HTTPError as error:
         if error.response.status_code == 401:
             log(config,
-                f"Skipping {os.path.basename(final_path)}; received HTTP 401 Unauthorized",
+                f"Skipping download of {os.path.basename(final_path)}; received HTTP 401 Unauthorized",
                 indent=indent)
             return
         raise error
@@ -289,9 +303,7 @@ def execute():
         sys.exit(1)
     except bridge.NoProvidersException as exception:
         print(exception)
-        sys.exit(1)
+        sys.exit(2)
     # except Exception as exception: # pylint: disable=W0703
     #     print(exception, file=sys.stderr)
     #     sys.exit(1)
-    finally:
-        cursor.show()

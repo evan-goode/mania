@@ -7,13 +7,8 @@ YAML.default_flow_style = False
 CONFIG_FILE = os.path.expanduser("~/.config/mania/config.yaml")
 INDENT = "  "
 TEMPORARY_EXTENSION = "part"
-CHUNK_SIZE = 1024 
+CHUNK_SIZE = 1024
 DEFAULT_CONFIG = {
-    "google": False,
-    "google-username": None,
-    "google-password": None,
-    "google-android-id": None,
-    "google-quality": "high",
     "tidal": False,
     "tidal-username": None,
     "tidal-password": None,
