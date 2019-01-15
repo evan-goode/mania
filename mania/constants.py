@@ -18,7 +18,6 @@ DEFAULT_CONFIG = {
     "nice-format": False,
     "full-structure": False,
     "skip-metadata": False,
-    "increment-play-count": True,
     "search-count": 8,
     "output-directory": ".",
     "debug-logging": False,

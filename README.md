@@ -1,14 +1,20 @@
 # Mania 👻
 
-Mania is a command-line tool for downloading music from streaming services. It currently supports [Google Play Music](https://play.google.com/music) and [TIDAL](https://tidal.com). It is intended for educational and private use only, and **not** as a tool for pirating and distributing music.
+Mania is a command-line tool for downloading music from [TIDAL](https://tidal.com). It is intended for educational and private use only, and **not** as a tool for pirating and distributing music.
+
+### A note about Google Play Music
+
+Starting with version 3.0.0, Mania no longer supports Google Play Music. Why not? First and foremost, I no longer have a Google Play Music account, so GPM integration has become difficult to test. Second, the future of Google Play Music itself is uncertain. Google's reputation for killing off underperforming projects is [well-established](https://killedbygoogle.com/), and rumors of YouTube Music completely replacing GPM have recently resurfaced.
+
+That being said, please let me know if you are interested in keeping Google Play Music supported. All I need is a GPM subscription or a volunteer who can test changes with their account.
 
 ## Installation :arrow_down:
 
 ```
-pip install --user --upgrade "https://github.com/evan-goode/mania/archive/master.zip"
+pip3 install --user --upgrade "https://github.com/evan-goode/mania/archive/master.zip"
 ```
 
-Mania requires Python 3.6 or higher. Support for older versions isn't on the roadmap, but feel free to PR. I don't think much would need to be changed.
+Mania requires Python 3.6 or higher. Support for older versions isn't on the roadmap, but feel free to submit a pull request. I don't think much would need to change.
 
 Mania has only been tested on macOS and GNU/Linux.
 
@@ -36,11 +42,6 @@ The first time it is run, Mania populates `~/config/mania/config.yaml` with some
 
 To point Mania to a different configuration file, use `--config-file <file>`.
 
-- `google`: enable downloading from Google Play Music
-- `google-username`: your Google username. If this is not specified, Mania will ask at runtime. Default value is `null`.
-- `google-password`: your Google password. Again, if this is not specified, Mania will ask. If you use two-factor authentication, you will need to supply an [App Password](https://support.google.com/accounts/answer/185833?hl=en) instead. Default value is `null`.
-- `google-android-id`: refer to the [gmusicapi documentation](https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html?highlight=android_id#gmusicapi.clients.Mobileclient.login). Default value is `null`.
-- `google-quality`: Default value is `high`. Possible values are `high` (320 kbps MP3), `medium` (160 kbps MP3), and `low` (96 kbps MP3).
 - `tidal`: enable downloading from TIDAL
 - `tidal-username`: your TIDAL username. If this is not specified, Mania will ask at runtime. Default value is `null`.
 - `tidal-password`: your TIDAL password. Again, if this is not specified, Mania will ask. Default value is `null`.
@@ -49,15 +50,16 @@ To point Mania to a different configuration file, use `--config-file <file>`.
 - `nice-format`: rename downloaded material to follow kebab-case. "Maxwell's Silver Hammer (Remastered).mp3" becomes "maxwells-silver-hammer-remastered.mp3". Default value is `false`.
 - `skip-metadata`: don't download cover art or set tags. Not sure why someone would want this. Default value is `false`.
 - `full-structure`: always organize content by artist and album. Default value is `false`.
-- `increment-play-count`: increment each song's "play count" by one after downloading. Currently only applies to Google. Default value is `true`.
 - `search-count`: how many results from each provider to include in the search. Default value is `8`.
 - `output-directory`: where to put downloaded music. Default value is `.` (your working directory when you run Mania).
 - `debug-logging`: enable debug logging if the provider supports it. Default value is `false`.
 - `lucky`: automatically select the top hit. Default value is `false`.
 
+## License ⚖️
+
+[The Unlicense](https://unlicense.org)
+
 ## See Also :books:
 
 - [tidalapi4mopidy](https://github.com/mones88/python-tidal)
 - [tidalapi](https://github.com/tamland/python-tidal)
-- [gmusicapi](https://unofficial-google-music-api.readthedocs.io/en/latest/)
-- [gmusicproxy](https://gmusicproxy.net/)

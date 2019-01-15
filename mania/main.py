@@ -147,9 +147,9 @@ def download_song(client, config, song, song_path, indent=0):
                 indent=indent)
             os.remove(temporary_path)
             return
-    if config["increment-play-count"] and getattr(song.provider, "increment_play_count", False):
-        log(config, "Incrementing play count...", indent=indent)
-        song.provider.increment_play_count(song)
+    #if config["increment-play-count"] and getattr(song.provider, "increment_play_count", False):
+    #    log(config, "Incrementing play count...", indent=indent)
+    #    song.provider.increment_play_count(song)
     os.rename(temporary_path, final_path)
 
 def get_song_path(config, song, track_count=1, disc_count=1):
