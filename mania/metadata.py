@@ -5,7 +5,7 @@ from mutagen.flac import FLAC, Picture as FLACPicture
 
 from . import models
 
-class InvalidFileError(models.ManiaException):
+class InvalidFileError(Exception):
     pass
 
 # def resolve_mp3_metadata(song, path, picture):
@@ -28,12 +28,12 @@ class InvalidFileError(models.ManiaException):
 #     )
 #     tagger.save()
 
-def resolve_mp4_metadata(song, path, picture):
+def resolve_mp4_metadata(song, path, picture, config):
     tagger = MP4(path)
     tagger["\xa9nam"] = song.name
     tagger["\xa9alb"] = song.album.name
-    tagger["\xa9ART"] = song.artist.name
-    tagger["aART"] = song.album.artist.name
+    tagger["\xa9ART"] = song.get_primary_artist_name(config)
+    tagger["aART"] = song.album.get_primary_artist_name(config)
     tagger["trkn"] = [(song.track_number, 0)]
     tagger["disk"] = [(song.disc_number, 0)]
     imageformat = (MP4Picture.FORMAT_PNG
@@ -42,15 +42,15 @@ def resolve_mp4_metadata(song, path, picture):
     tagger["covr"] = [MP4Picture(picture["data"], imageformat=imageformat)]
     tagger.save()
 
-def resolve_flac_metadata(song, path, picture):
+def resolve_flac_metadata(song, path, picture, config):
     try:
         tagger = FLAC(path)
     except mutagen.flac.FLACNoHeaderError:
         raise InvalidFileError()
     tagger["title"] = song.name
     tagger["album"] = song.album.name
-    tagger["artist"] = song.artist.name
-    tagger["albumartist"] = song.album.artist.name
+    tagger["artist"] = song.get_primary_artist_name(config)
+    tagger["albumartist"] = song.album.get_primary_artist_name(config)
     tagger["tracknumber"] = str(song.track_number)
     tagger["discnumber"] = str(song.disc_number)
     flac_picture = FLACPicture()

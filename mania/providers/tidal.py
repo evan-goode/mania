@@ -78,26 +78,27 @@ class TidalClient(models.Client):
             id=tidal_artist["id"],
             name=tidal_artist["name"],
         )
-    def tidal_album_to_album(self, tidal_album, artist=None):
+    def tidal_album_to_album(self, tidal_album):
+        print("tidal_album", tidal_album)
         year = tidal_album["releaseDate"].split("-")[0]
         cover_art_url = self._get_cover_art_url(tidal_album["cover"])
-        artist = artist or self.tidal_artist_to_artist(tidal_album["artists"][0])
+        artists = [self.tidal_artist_to_artist(tidal_artist) for tidal_artist in tidal_album["artists"]]
         return models.Album(
             provider=self,
             id=tidal_album["id"],
             name=tidal_album["title"],
-            artist=artist,
+            artists=artists,
             year=year,
             cover_art_url=cover_art_url,
         )
     def tidal_song_to_song(self, tidal_song, album=None):
         album = album or self.get_album(tidal_song["album"]["id"])
-        artist = self.tidal_artist_to_artist(tidal_song["artists"][0])
+        artists = [self.tidal_artist_to_artist(tidal_artist) for tidal_artist in tidal_song["artists"]]
         return models.Song(
             provider=self,
             id=tidal_song["id"],
             name=tidal_song["title"],
-            artist=artist,
+            artists=artists,
             album=album,
             track_number=tidal_song["trackNumber"],
             disc_number=tidal_song["volumeNumber"],
@@ -141,4 +142,4 @@ class TidalClient(models.Client):
         albums = self._paginate("GET", "pages/data/4b37c74b-f994-45dd-8fca-b7da2694da83", params={
             "artistId": artist.id,
         })
-        return [self.tidal_album_to_album(album, artist=artist) for album in albums]
+        return [self.tidal_album_to_album(album) for album in albums]

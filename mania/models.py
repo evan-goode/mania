@@ -17,7 +17,16 @@ class Media(ABC):
         self.provider = media["provider"]
         self.id = media["id"]
 
-class Song(Media):
+class Artifact(Media):
+    def __init__(self, **artifact):
+        super().__init__(**artifact)
+        self.artists = artifact["artists"]
+    def get_primary_artist_name(self, config):
+        if len(self.artists) > 1 and config["various-artists"]:
+            return "Various Artists"
+        return self.artists[0].name
+
+class Song(Artifact):
     def __init__(self, **song):
         super().__init__(**song)
         self.name = song["name"]
@@ -25,15 +34,13 @@ class Song(Media):
         self.track_number = song["track_number"]
         self.disc_number = song["disc_number"]
         self.album = song["album"]
-        self.artist = song["artist"]
 
-class Album(Media):
+class Album(Artifact):
     def __init__(self, **album):
         super().__init__(**album)
         self.name = album["name"]
         self.cover_art_url = album["cover_art_url"]
         self.year = album["year"]
-        self.artist = album["artist"]
 
 class Artist(Media):
     def __init__(self, **artist):

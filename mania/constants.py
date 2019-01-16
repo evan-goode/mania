@@ -21,4 +21,5 @@ DEFAULT_CONFIG = {
     "search-count": 8,
     "output-directory": ".",
     "debug-logging": False,
+    "various-artists": True,
 }

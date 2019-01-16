@@ -45,7 +45,7 @@ def search(client, config, media_type, query):
         for result in results:
             provider = result.provider.name
             name = result.name
-            artist = result.artist.name
+            artist = ", ".join([artist.name for artist in result.artists])
             album = result.album.name
             indent = constants.INDENT + " " * 3
             year = result.album.year
@@ -57,7 +57,7 @@ def search(client, config, media_type, query):
         for result in results:
             provider = result.provider.name
             name = result.name
-            artist = result.artist.name
+            artist = ", ".join([artist.name for artist in result.artists])
             indent = constants.INDENT + " " * 3
             year = result.year
             label = (f"{name} ({year})\n{indent}{artist} [{provider}]\n"
@@ -95,7 +95,7 @@ def resolve_metadata(config, song, path, indent):
         # "mp3": metadata.resolve_mp3_metadata,
         "mp4": metadata.resolve_mp4_metadata,
         "flac": metadata.resolve_flac_metadata,
-    }[song.extension](song, path, picture)
+    }[song.extension](song, path, picture, config)
 
 def download_song(client, config, song, song_path, indent=0):
     temporary_path = f"{song_path}.{constants.TEMPORARY_EXTENSION}.{song.extension}"
@@ -163,7 +163,7 @@ def handle_song(client, config, query):
                                   track_count=maximum_track_number,
                                   disc_count=maximum_disc_number)
         path = os.path.join(config["output-directory"],
-                            sanitize(config, song.album.artist.name),
+                            sanitize(config, song.album.get_primary_artist_name(config)),
                             sanitize(config, song.album.name),
                             song_path)
     else:
@@ -177,7 +177,7 @@ def handle_album(client, config, query):
     path = None
     if config["full-structure"]:
         path = os.path.join(config["output-directory"],
-                            sanitize(config, album.artist.name),
+                            sanitize(config, album.get_primary_artist_name(config)),
                             sanitize(config, album.name))
     else:
         path = os.path.join(config["output-directory"],
