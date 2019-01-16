@@ -1,5 +1,17 @@
 from abc import ABC, abstractmethod
 
+class ManiaException(Exception):
+    exit_code = 2
+    def __init__(self, message, config):
+        super().__init__(message)
+        self.config = config
+
+class ManiaSeriousException(ManiaException):
+    exit_code = 1
+    def __init__(self, message, config):
+        super().__init__(message)
+        self.config = config
+
 class Media(ABC):
     def __init__(self, **media):
         self.provider = media["provider"]

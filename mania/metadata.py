@@ -3,28 +3,30 @@ from mutagen.id3 import ID3, APIC as ID3Picture
 from mutagen.mp4 import MP4, MP4Cover as MP4Picture
 from mutagen.flac import FLAC, Picture as FLACPicture
 
-class InvalidFileError(Exception):
+from . import models
+
+class InvalidFileError(models.ManiaException):
     pass
 
-def resolve_mp3_metadata(song, path, picture):
-    tagger = mutagen.File(path, easy=True)
-    tagger.add_tags()
-    tagger["title"] = song.name
-    tagger["album"] = song.album.name
-    tagger["artist"] = song.artist.name
-    tagger["albumartist"] = song.album.artist.name
-    tagger["tracknumber"] = str(song.track_number)
-    tagger["discnumber"] = str(song.disc_number)
-    tagger.save()
-    tagger = ID3(path)
-    tagger["APIC"] = ID3Picture(
-        encoding=3,
-        type=3,
-        desc=u'Cover',
-        mime=picture["mime"],
-        data=picture["data"],
-    )
-    tagger.save()
+# def resolve_mp3_metadata(song, path, picture):
+#     tagger = mutagen.File(path, easy=True)
+#     tagger.add_tags()
+#     tagger["title"] = song.name
+#     tagger["album"] = song.album.name
+#     tagger["artist"] = song.artist.name
+#     tagger["albumartist"] = song.album.artist.name
+#     tagger["tracknumber"] = str(song.track_number)
+#     tagger["discnumber"] = str(song.disc_number)
+#     tagger.save()
+#     tagger = ID3(path)
+#     tagger["APIC"] = ID3Picture(
+#         encoding=3,
+#         type=3,
+#         desc=u'Cover',
+#         mime=picture["mime"],
+#         data=picture["data"],
+#     )
+#     tagger.save()
 
 def resolve_mp4_metadata(song, path, picture):
     tagger = MP4(path)

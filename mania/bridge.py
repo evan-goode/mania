@@ -3,7 +3,7 @@ import itertools
 from . import models
 from .providers.tidal import TidalClient
 
-class NoProvidersException(Exception):
+class NoProvidersException(models.ManiaSeriousException):
     pass
 
 class Bridge(models.Client):

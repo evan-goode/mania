@@ -11,13 +11,15 @@ from . import bridge
 from . import models
 from . import metadata
 
-# exit codes:
-# 1: unexpected error
-# 2: graceful, expected exit, but still non-zero
+class NoResultsException(models.ManiaException):
+    pass
+
+class NoAnswerException(models.ManiaException):
+    pass
 
 def log(config, message="", indent=0):
-    if not config["quiet"]:
-        print(constants.INDENT * indent + message)
+    if message is not None and not config["quiet"]:
+        print(constants.INDENT * indent + str(message))
 
 def sanitize(config, string):
     if not config["nice-format"]:
@@ -35,8 +37,7 @@ def search(client, config, media_type, query):
     string = " ".join(query)
     results = client.search(string, media_type, config["search-count"])
     if not results:
-        log(config, "No results found.")
-        sys.exit(2)
+        raise NoResultsException("No results found.", config)
     if config["lucky"]:
         return results[0]
     def song_handler(results):
@@ -47,9 +48,8 @@ def search(client, config, media_type, query):
             artist = result.artist.name
             album = result.album.name
             indent = constants.INDENT + " " * 3
-            year = result.year
-            label = (f"{name}\n{indent}{artist}\n{indent}{album} ({year}) [{provider}]\n"
-                     if year else f"{name}\n{indent}{artist}\n{indent}{album} [{provider}]\n")
+            year = result.album.year
+            label = (f"{name}\n{indent}{artist}\n{indent}{album} ({year}) [{provider}]\n")
             choices.append(questionary.Choice(label, value=result))
         return choices
     def album_handler(results):
@@ -80,7 +80,7 @@ def search(client, config, media_type, query):
         choices=media_handlers[media_type](results)
     ).ask()
     if not answer:
-        sys.exit(2)
+        raise NoAnswerException("", config)
     return answer
 
 def resolve_metadata(config, song, path, indent):
@@ -92,7 +92,7 @@ def resolve_metadata(config, song, path, indent):
         "mime": request.headers.get("content-type", ""),
     }
     {
-        "mp3": metadata.resolve_mp3_metadata,
+        # "mp3": metadata.resolve_mp3_metadata,
         "mp4": metadata.resolve_mp4_metadata,
         "flac": metadata.resolve_flac_metadata,
     }[song.extension](song, path, picture)
@@ -104,19 +104,6 @@ def download_song(client, config, song, song_path, indent=0):
         log(config,
             f"Skipping download of {os.path.basename(final_path)}; it already exists.",
             indent=indent)
-        if not config["skip-metadata"]:
-            # We try to update metadata even when a song is already downloaded
-            # because more is known about a song while downloading the entire
-            # album, for example the album artist, track number, and disc
-            # number. In the event that a user downloads one song from an album
-            # and then proceeds to download the whole album, that first song's
-            # metadata should be updated to remain consistent with the rest of
-            # the files.
-            log(config, f"Attempting to update metadata...")
-            try:
-                resolve_metadata(config, song, final_path, indent)
-            except metadata.InvalidFileError:
-                log(f"{os.path.basename(final_path)} is invalid.")
         return
     try:
         media_url = client.get_media_url(song)
@@ -147,7 +134,7 @@ def download_song(client, config, song, song_path, indent=0):
                 indent=indent)
             os.remove(temporary_path)
             return
-    #if config["increment-play-count"] and getattr(song.provider, "increment_play_count", False):
+    # if config["increment-play-count"] and getattr(song.provider, "increment_play_count", False):
     #    log(config, "Incrementing play count...", indent=indent)
     #    song.provider.increment_play_count(song)
     os.rename(temporary_path, final_path)
@@ -182,6 +169,7 @@ def handle_song(client, config, query):
     else:
         path = os.path.join(config["output-directory"],
                             get_song_path(config, song))
+    log(config, f'Downloading "{song.name}"...')
     download_song(client, config, song, path)
 
 def handle_album(client, config, query):
@@ -211,9 +199,7 @@ def download_album(client, config, album, album_path, indent=0):
                                   track_count=maximum_track_number,
                                   disc_count=maximum_disc_number)
         path = os.path.join(album_path, song_path)
-        log_string = " ".join([f'Downloading "{song.name}"',
-                               f"({index} of {total_count} song(s))..."])
-        log(config, log_string, indent=indent)
+        log(config, f'Downloading "{song.name}" ({index} of {total_count} song(s))...', indent=indent)
         download_song(client, config, song, path, indent=indent + 1)
 
 def handle_discography(client, config, query):
@@ -228,9 +214,7 @@ def download_discography(client, config, artist, artist_path, indent=0):
     total_count = len(albums)
     for index, album in enumerate(albums, 1):
         path = os.path.join(artist_path, sanitize(config, album.name))
-        log_string = " ".join([f'Downloading "{album.name}"',
-                               f"({index} of {total_count} album(s))..."])
-        log(config, log_string, indent=indent)
+        log(config, f'Downloading "{album.name}" ({index} of {total_count} album(s))...', indent=indent)
         download_album(client, config, album, path, indent=indent + 1)
 
 def load_config(args):
@@ -299,11 +283,13 @@ def main():
 def execute():
     try:
         main()
+    except models.ManiaSeriousException as exception:
+        if len(str(exception)):
+            log(exception.config, exception)
+        sys.exit(exception.exit_code)
     except KeyboardInterrupt:
-        sys.exit(2)
-    except bridge.NoProvidersException as exception:
-        print(exception)
         sys.exit(1)
-    # except Exception as exception: # pylint: disable=W0703
-    #     print(exception, file=sys.stderr)
-    #     sys.exit(1)
+    except models.ManiaException as exception:
+        if len(str(exception)):
+            log(exception.config, exception)
+        sys.exit(exception.exit_code)
