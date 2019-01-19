@@ -20,6 +20,5 @@ DEFAULT_CONFIG = {
     "skip-metadata": False,
     "search-count": 8,
     "output-directory": ".",
-    "debug-logging": False,
     "various-artists": True,
 }

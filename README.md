@@ -52,7 +52,6 @@ To point Mania to a different configuration file, use `--config-file <file>`.
 - `full-structure`: always organize content by artist and album. Default value is `false`.
 - `search-count`: how many results from each provider to include in the search. Default value is `8`.
 - `output-directory`: where to put downloaded music. Default value is `.` (your working directory when you run Mania).
-- `debug-logging`: enable debug logging if the provider supports it. Default value is `false`.
 - `lucky`: automatically select the top hit. Default value is `false`.
 - `various-artists`: tag songs and albums with multiple artists as "Various Artists" instead of by the first listed artist. Default value is `true`.
 
