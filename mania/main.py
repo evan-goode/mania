@@ -97,7 +97,34 @@ def resolve_metadata(config, song, path, indent):
         "flac": metadata.resolve_flac_metadata,
     }[song.extension](song, path, picture, config)
 
-def download_song(client, config, song, song_path, indent=0):
+def get_song_path(config, song, include_artist=False, include_album=False):
+    artist_path = ""
+    album_path = ""
+    disc_path = ""
+    file_path = ""
+
+    if include_artist or config["full-structure"]:
+        artist_path = sanitize(config,
+                               song.album.get_primary_artist_name(config))
+
+    if include_album or config["full-structure"]:
+        album_path = sanitize(config, song.album.name)
+        if song.album.disc_count > 1:
+            disc_number = str(song.disc_number).zfill(len(str(song.album.disc_count)))
+            disc_path = sanitize(config, f"Disc {disc_number}")
+        file_path = sanitize(config, f"{song.track_number} {song.name}")
+    else:
+        file_path = sanitize(config, song.name)
+
+    return os.path.join(config["output-directory"], artist_path, album_path, disc_path, file_path)
+
+def download_song(client, config, song,
+                  include_artist=False,
+                  include_album=False,
+                  indent=0):
+    song_path = get_song_path(config, song,
+                              include_artist=include_artist,
+                              include_album=include_album)
     temporary_path = f"{song_path}.{constants.TEMPORARY_EXTENSION}.{song.extension}"
     final_path = f"{song_path}.{song.extension}"
     if os.path.isfile(final_path):
@@ -139,83 +166,35 @@ def download_song(client, config, song, song_path, indent=0):
     #    song.provider.increment_play_count(song)
     os.rename(temporary_path, final_path)
 
-def get_song_path(config, song, track_count=1, disc_count=1):
-    file_name = None
-    if track_count > 1:
-        track_number = str(song.track_number).zfill(len(str(track_count)))
-        file_name = sanitize(config, f"{track_number} {song.name}")
-    else:
-        file_name = sanitize(config, song.name)
-    if disc_count > 1:
-        disc_number = str(song.disc_number).zfill(len(str(disc_count)))
-        disc_name = sanitize(config, f"Disc {disc_number}")
-        return os.path.join(disc_name, file_name)
-    return file_name
-
 def handle_song(client, config, query):
     song = search(client, config, models.Song, query)
-    path = None
-    if config["full-structure"]:
-        siblings = client.get_album_songs(song.album)
-        maximum_track_number = get_maximum_track_number(siblings)
-        maximum_disc_number = get_maximum_disc_number(siblings)
-        song_path = get_song_path(config, song,
-                                  track_count=maximum_track_number,
-                                  disc_count=maximum_disc_number)
-        path = os.path.join(config["output-directory"],
-                            sanitize(config, song.album.get_primary_artist_name(config)),
-                            sanitize(config, song.album.name),
-                            song_path)
-    else:
-        path = os.path.join(config["output-directory"],
-                            get_song_path(config, song))
     log(config, f'Downloading "{song.name}"...')
-    download_song(client, config, song, path)
+    download_song(client, config, song)
 
 def handle_album(client, config, query):
     album = search(client, config, models.Album, query)
-    path = None
-    if config["full-structure"]:
-        path = os.path.join(config["output-directory"],
-                            sanitize(config, album.get_primary_artist_name(config)),
-                            sanitize(config, album.name))
-    else:
-        path = os.path.join(config["output-directory"],
-                            sanitize(config, album.name))
-    download_album(client, config, album, path)
+    log(config, f'Downloading "{album.name}"...')
+    download_album(client, config, album)
 
-def get_maximum_track_number(songs):
-    return max([song.track_number for song in songs])
-def get_maximum_disc_number(songs):
-    return max([song.disc_number for song in songs])
-
-def download_album(client, config, album, album_path, indent=0):
+def download_album(client, config, album, include_artist=False, indent=0):
     songs = client.get_album_songs(album)
-    maximum_track_number = get_maximum_track_number(songs)
-    maximum_disc_number = get_maximum_disc_number(songs)
-    total_count = len(songs)
     for index, song in enumerate(songs, 1):
-        song_path = get_song_path(config, song,
-                                  track_count=maximum_track_number,
-                                  disc_count=maximum_disc_number)
-        path = os.path.join(album_path, song_path)
-        log(config, f'Downloading "{song.name}" ({index} of {total_count} song(s))...', indent=indent)
-        download_song(client, config, song, path, indent=indent + 1)
+        log(config, f'Downloading "{song.name}" ({index} of {len(songs)} song(s))...', indent=indent)
+        download_song(client, config, song,
+                      include_artist=include_artist,
+                      include_album=True,
+                      indent=indent + 1)
 
 def handle_discography(client, config, query):
     artist = search(client, config, models.Artist, query)
-    path = os.path.join(
-        config["output-directory"],
-        sanitize(config, artist.name))
-    download_discography(client, config, artist, path)
+    log(config, f'Downloading "{artist.name}"...')
+    download_discography(client, config, artist)
 
-def download_discography(client, config, artist, artist_path, indent=0):
+def download_discography(client, config, artist, indent=0):
     albums = client.get_artist_albums(artist)
-    total_count = len(albums)
     for index, album in enumerate(albums, 1):
-        path = os.path.join(artist_path, sanitize(config, album.name))
-        log(config, f'Downloading "{album.name}" ({index} of {total_count} album(s))...', indent=indent)
-        download_album(client, config, album, path, indent=indent + 1)
+        log(config, f'Downloading "{album.name}" ({index} of {len(albums)} album(s))...', indent=indent)
+        download_album(client, config, album, include_artist=True, indent=indent + 1)
 
 def load_config(args):
     def initialize(config_file):
@@ -236,8 +215,7 @@ def load_config(args):
             return default
         config = {key: resolve(args.get(key), file.get(key), default)
                   for key, default in constants.DEFAULT_CONFIG.items()}
-        output_directory = os.path.expanduser(config["output-directory"])
-        config["output-directory"] = output_directory
+        config["output-directory"] = os.path.expanduser(config["output-directory"])
         config["config-file"] = config_file
         return config
 
@@ -284,12 +262,12 @@ def execute():
     try:
         main()
     except models.ManiaSeriousException as exception:
-        if len(str(exception)):
+        if str(exception):
             log(exception.config, exception)
         sys.exit(exception.exit_code)
     except KeyboardInterrupt:
         sys.exit(1)
     except models.ManiaException as exception:
-        if len(str(exception)):
+        if str(exception):
             log(exception.config, exception)
         sys.exit(exception.exit_code)

@@ -86,6 +86,8 @@ class TidalClient(models.Client):
             provider=self,
             id=tidal_album["id"],
             name=tidal_album["title"],
+            track_count=tidal_album["numberOfTracks"],
+            disc_count=tidal_album["numberOfVolumes"],
             artists=artists,
             year=year,
             cover_art_url=cover_art_url,

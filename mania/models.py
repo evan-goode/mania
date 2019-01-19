@@ -39,6 +39,8 @@ class Album(Artifact):
     def __init__(self, **album):
         super().__init__(**album)
         self.name = album["name"]
+        self.track_count = album["track_count"]
+        self.disc_count = album["disc_count"]
         self.cover_art_url = album["cover_art_url"]
         self.year = album["year"]
 
