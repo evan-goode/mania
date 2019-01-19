@@ -143,4 +143,4 @@ class TidalClient(models.Client):
         albums = self._paginate("GET", "pages/data/4b37c74b-f994-45dd-8fca-b7da2694da83", params={
             "artistId": artist.id,
         })
-        return [self.tidal_album_to_album(album) for album in albums]
+        return [self.get_album(album["id"]) for album in albums]
