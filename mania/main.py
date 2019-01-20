@@ -97,32 +97,41 @@ def resolve_metadata(config, song, path, indent):
         "flac": metadata.resolve_flac_metadata,
     }[song.extension](song, path, picture, config)
 
-def get_song_path(config, song, include_artist=False, include_album=False):
+def get_song_path(client, config, song, siblings=None, include_artist=False, include_album=False):
+    def get_maximum_disc_number(songs):
+        return max([song.disc_number for song in songs])
+    def get_maximum_track_number(songs):
+        return max([song.track_number for song in songs])
     artist_path = ""
     album_path = ""
     disc_path = ""
     file_path = ""
-
     if include_artist or config["full-structure"]:
         artist_path = sanitize(config,
                                song.album.get_primary_artist_name(config))
 
     if include_album or config["full-structure"]:
+        siblings = siblings if siblings else client.get_album_songs(song.album)
+        maximum_disc_number = get_maximum_disc_number(siblings)
+        maximum_track_number = get_maximum_track_number(siblings)
         album_path = sanitize(config, song.album.name)
-        if song.album.disc_count > 1:
-            disc_number = str(song.disc_number).zfill(len(str(song.album.disc_count)))
+        if maximum_disc_number > 1:
+            disc_number = str(song.disc_number).zfill(len(str(maximum_disc_number)))
             disc_path = sanitize(config, f"Disc {disc_number}")
-        file_path = sanitize(config, f"{song.track_number} {song.name}")
+        track_number = str(song.track_number).zfill(len(str(maximum_track_number)))
+        file_path = sanitize(config, f"{track_number} {song.name}")
     else:
         file_path = sanitize(config, song.name)
 
     return os.path.join(config["output-directory"], artist_path, album_path, disc_path, file_path)
 
 def download_song(client, config, song,
+                  siblings=None,
                   include_artist=False,
                   include_album=False,
                   indent=0):
-    song_path = get_song_path(config, song,
+    song_path = get_song_path(client, config, song,
+                              siblings=siblings,
                               include_artist=include_artist,
                               include_album=include_album)
     temporary_path = f"{song_path}.{constants.TEMPORARY_EXTENSION}.{song.extension}"
@@ -181,6 +190,7 @@ def download_album(client, config, album, include_artist=False, indent=0):
     for index, song in enumerate(songs, 1):
         log(config, f'Downloading "{song.name}" ({index} of {len(songs)} song(s))...', indent=indent)
         download_song(client, config, song,
+                      siblings=songs,
                       include_artist=include_artist,
                       include_album=True,
                       indent=indent + 1)

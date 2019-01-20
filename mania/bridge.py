@@ -12,7 +12,7 @@ class Bridge(models.Client):
         if config["tidal"]:
             self._providers.append(TidalClient(config))
         if not self._providers:
-            raise NoProvidersException(f"No streaming providers are set up. Configure and enable downloading from TIDAL in {config['config-file']}.")
+            raise NoProvidersException(f"No streaming providers are set up. Configure and enable downloading from TIDAL in {config['config-file']}.", config)
     def search(self, query, media_type, count):
         by_provider = [provider.search(query,
                                        media_type,

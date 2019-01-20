@@ -86,8 +86,6 @@ class TidalClient(models.Client):
             provider=self,
             id=tidal_album["id"],
             name=tidal_album["title"],
-            track_count=tidal_album["numberOfTracks"],
-            disc_count=tidal_album["numberOfVolumes"],
             artists=artists,
             year=year,
             cover_art_url=cover_art_url,
@@ -143,4 +141,4 @@ class TidalClient(models.Client):
         albums = self._paginate("GET", "pages/data/4b37c74b-f994-45dd-8fca-b7da2694da83", params={
             "artistId": artist.id,
         })
-        return [self.get_album(album["id"]) for album in albums]
+        return [self.tidal_album_to_album(album) for album in albums]
