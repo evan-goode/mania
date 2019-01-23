@@ -84,13 +84,17 @@ def search(client, config, media_type, query):
     return answer
 
 def resolve_metadata(config, song, path, indent):
+    def get_picture(song):
+        if not song.album.cover_art_url:
+            return None
+        request = requests.get(song.album.cover_art_url)
+        request.raise_for_status()
+        return {
+            "data": request.content,
+            "mime": request.headers.get("content-type", ""),
+        }
     log(config, "Resolving metadata...", indent=indent)
-    request = requests.get(song.album.cover_art_url)
-    request.raise_for_status()
-    picture = {
-        "data": request.content,
-        "mime": request.headers.get("content-type", ""),
-    }
+    picture = get_picture(song)
     {
         # "mp3": metadata.resolve_mp3_metadata,
         "mp4": metadata.resolve_mp4_metadata,

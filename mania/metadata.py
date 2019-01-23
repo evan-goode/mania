@@ -36,10 +36,11 @@ def resolve_mp4_metadata(song, path, picture, config):
     tagger["aART"] = song.album.get_primary_artist_name(config)
     tagger["trkn"] = [(song.track_number, 0)]
     tagger["disk"] = [(song.disc_number, 0)]
-    imageformat = (MP4Picture.FORMAT_PNG
-                   if picture["mime"] == "image/png"
-                   else MP4Picture.FORMAT_JPEG)
-    tagger["covr"] = [MP4Picture(picture["data"], imageformat=imageformat)]
+    if picture:
+        imageformat = (MP4Picture.FORMAT_PNG
+                       if picture["mime"] == "image/png"
+                       else MP4Picture.FORMAT_JPEG)
+        tagger["covr"] = [MP4Picture(picture["data"], imageformat=imageformat)]
     tagger.save()
 
 def resolve_flac_metadata(song, path, picture, config):
@@ -53,10 +54,11 @@ def resolve_flac_metadata(song, path, picture, config):
     tagger["albumartist"] = song.album.get_primary_artist_name(config)
     tagger["tracknumber"] = str(song.track_number)
     tagger["discnumber"] = str(song.disc_number)
-    flac_picture = FLACPicture()
-    flac_picture.type = 3
-    flac_picture.desc = "Cover"
-    flac_picture.mime = picture["mime"]
-    flac_picture.data = picture["data"]
-    tagger.add_picture(flac_picture)
+    if picture:
+        flac_picture = FLACPicture()
+        flac_picture.type = 3
+        flac_picture.desc = "Cover"
+        flac_picture.mime = picture["mime"]
+        flac_picture.data = picture["data"]
+        tagger.add_picture(flac_picture)
     tagger.save()

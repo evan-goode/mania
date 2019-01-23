@@ -38,8 +38,8 @@ class Song(Artifact):
 class Album(Artifact):
     def __init__(self, **album):
         super().__init__(**album)
+        self.cover_art_url = album.get("cover_art_url")
         self.name = album["name"]
-        self.cover_art_url = album["cover_art_url"]
         self.year = album["year"]
 
 class Artist(Media):
