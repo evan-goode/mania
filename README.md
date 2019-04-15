@@ -38,7 +38,7 @@ mania song fake plastic trees --tidal --lucky
 
 Every option (except `--config-file`) can be specified either as a command-line argument or using a YAML configuration file. On the command line, prefix the option with `--`, or, when setting a boolean to false, `--no-`.
 
-The first time it is run, Mania populates `~/config/mania/config.yaml` with some default values. For more information on the YAML format, see https://docs.ansible.com/ansible/latest/YAMLSyntax.html.
+The first time it is run, Mania populates `~/.config/mania/config.yaml` with some default values. For more information on the YAML format, see https://docs.ansible.com/ansible/latest/YAMLSyntax.html.
 
 To point Mania to a different configuration file, use `--config-file <file>`.
 
