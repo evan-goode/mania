@@ -149,6 +149,7 @@ def download_song(client, config, song,
         media_url = client.get_media_url(song)
     except requests.exceptions.HTTPError as error:
         if error.response.status_code == 401:
+            print("error:", error)
             log(config,
                 f"Skipping download of {os.path.basename(final_path)}; received HTTP 401 Unauthorized",
                 indent=indent)
