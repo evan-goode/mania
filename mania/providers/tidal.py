@@ -79,7 +79,7 @@ class TidalClient(models.Client):
             name=tidal_artist["name"],
         )
     def tidal_album_to_album(self, tidal_album):
-        year = tidal_album["releaseDate"].split("-")[0]
+        year = tidal_album["releaseDate"].split("-")[0] if "releaseDate" in tidal_album else None
         cover_art_url = self._get_cover_art_url(tidal_album["cover"]) if tidal_album["cover"] else None
         artists = [self.tidal_artist_to_artist(tidal_artist) for tidal_artist in tidal_album["artists"]]
         return models.Album(

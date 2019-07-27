@@ -149,6 +149,7 @@ def download_song(client, config, song,
         media_url = client.get_media_url(song)
     except requests.exceptions.HTTPError as error:
         if error.response.status_code == 401:
+            print("error:", error)
             log(config,
                 f"Skipping download of {os.path.basename(final_path)}; received HTTP 401 Unauthorized",
                 indent=indent)
@@ -162,7 +163,7 @@ def download_song(client, config, song,
         iterator = request.iter_content(chunk_size=chunk_size)
         if not config["quiet"]:
             total = math.ceil(int(request.headers.get("content-length")) / chunk_size)
-            iterator = tqdm(iterator, total=total, unit='KiB', unit_scale=True)
+            iterator = tqdm(iterator, total=total, unit='KiB', unit_scale=True, dynamic_ncols=True)
         for chunk in iterator:
             pointer.write(chunk)
     if not config["skip-metadata"]:
