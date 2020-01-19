@@ -1,3 +1,4 @@
+from bidict import bidict
 import locale
 import getpass
 import requests
@@ -30,6 +31,7 @@ class TidalClient(models.Client):
         self._search_count = config["search-count"]
         self._quality = config["tidal-quality"]
         self._session = requests.Session()
+        # HTTP 2.0 support might need to come soon
         # self._session.mount(API_SCHEME_AND_DOMAIN, HTTP20Adapter())
         self._session.headers["user-agent"] = USER_AGENT
         request = self._session.post(
@@ -61,7 +63,7 @@ class TidalClient(models.Client):
         params = {**{"countryCode": self._country_code,}, **(params or {})}
         url = f"{API_ENDPOINT}/{path}"
         request = self._session.request(method, url, params=params, data=data)
-        # request = self._session.request(method, url, params=params, data=data, proxies={"https": "localhost:8080"}, verify="mitmproxy-ca-cert.pem")
+        # request = self._session.request(method, url, params=params, data=data, proxies={"https": "https://localhost:8080"}, verify="mitmproxy-ca-cert.pem")
         request.raise_for_status()
         return request
 
@@ -113,12 +115,35 @@ class TidalClient(models.Client):
             cover_art_url=cover_art_url,
         )
 
+    def get_quality_extension(self, tidal_song):
+        qualities = bidict({"low": 1, "high": 2, "lossless": 3})
+
+        tidal_quality = None
+        quality = None
+
+        atmos = "DOLBY_ATMOS" in tidal_song["audioModes"]
+        if tidal_song["audioQuality"] in ["LOSSLESS", "HI_RES"] or atmos:
+            tidal_quality = "lossless"
+        elif tidal_song["audioQuality"] == "HIGH":
+            tidal_quality = "high"
+        elif tidal_song["audioQuality"] == "LOW":
+            tidal_quality = "low"
+
+        # get highest quality available, limited by self._quality preference
+        level = min(qualities[self._quality], qualities[tidal_quality])
+        quality = qualities.inverse[level]
+
+        extension = "flac" if quality == "lossless" else "mp4"
+
+        return quality, extension
+
     def tidal_song_to_song(self, tidal_song, album=None):
         album = album or self.get_album(tidal_song["album"]["id"])
         artists = [
             self.tidal_artist_to_artist(tidal_artist)
             for tidal_artist in tidal_song["artists"]
         ]
+        quality, extension = self.get_quality_extension(tidal_song)
         return models.Song(
             provider=self,
             id=tidal_song["id"],
@@ -127,12 +152,8 @@ class TidalClient(models.Client):
             album=album,
             track_number=tidal_song["trackNumber"],
             disc_number=tidal_song["volumeNumber"],
-            extension=(
-                "flac"
-                if self._quality == "lossless"
-                and tidal_song["audioQuality"] in ["LOSSLESS", "HI_RES"]
-                else "mp4"
-            ),
+            quality=quality,
+            extension=extension,
         )
 
     def search(self, query, media_type, count):
@@ -153,6 +174,7 @@ class TidalClient(models.Client):
         return [resolver(result) for result in results]
 
     def get_media_url(self, song):
+        quality = {"lossless": "LOSSLESS", "high": "HIGH", "low": "LOW",}[song.quality]
         response = self._request(
             "GET",
             f"tracks/{song.id}/urlpostpaywall",
@@ -160,9 +182,7 @@ class TidalClient(models.Client):
                 "urlusagemode": "OFFLINE",
                 "assetpresentation": "FULL",
                 "prefetch": "false",
-                "audioquality": {"lossless": "LOSSLESS", "high": "HIGH", "low": "LOW",}[
-                    self._quality
-                ],
+                "audioquality": quality,
             },
         ).json()
         return response["urls"][0]

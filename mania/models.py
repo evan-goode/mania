@@ -38,6 +38,7 @@ class Song(Artifact):
     def __init__(self, **song):
         super().__init__(**song)
         self.name = song["name"]
+        self.quality = song["quality"]
         self.extension = song["extension"]
         self.track_number = song["track_number"]
         self.disc_number = song["disc_number"]
