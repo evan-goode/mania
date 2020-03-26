@@ -10,11 +10,12 @@ setup(
     license="The Unlicense",
     packages=find_packages(),
     install_requires=[
-        "ruamel.yaml>=0.15",
-        "questionary",
-        "tqdm",
+        "bidict",
         "mutagen",
+        "questionary",
         "requests",
+        "ruamel.yaml>=0.15",
+        "tqdm",
     ],
     entry_points={"console_scripts": ["mania=mania.main:execute"]},
 )

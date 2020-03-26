@@ -5,8 +5,10 @@ from mutagen.flac import FLAC, Picture as FLACPicture
 
 from . import models
 
+
 class InvalidFileError(Exception):
     pass
+
 
 # def resolve_mp3_metadata(song, path, picture):
 #     tagger = mutagen.File(path, easy=True)
@@ -28,6 +30,7 @@ class InvalidFileError(Exception):
 #     )
 #     tagger.save()
 
+
 def resolve_mp4_metadata(song, path, picture, config):
     tagger = MP4(path)
     tagger["\xa9nam"] = song.name
@@ -37,11 +40,14 @@ def resolve_mp4_metadata(song, path, picture, config):
     tagger["trkn"] = [(song.track_number, 0)]
     tagger["disk"] = [(song.disc_number, 0)]
     if picture:
-        imageformat = (MP4Picture.FORMAT_PNG
-                       if picture["mime"] == "image/png"
-                       else MP4Picture.FORMAT_JPEG)
+        imageformat = (
+            MP4Picture.FORMAT_PNG
+            if picture["mime"] == "image/png"
+            else MP4Picture.FORMAT_JPEG
+        )
         tagger["covr"] = [MP4Picture(picture["data"], imageformat=imageformat)]
     tagger.save()
+
 
 def resolve_flac_metadata(song, path, picture, config):
     try:
