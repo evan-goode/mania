@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="mania",
-    version="3.0.1",
+    version="4.0.0",
     description="A command-line tool for downloading music from TIDAL",
     url="https://github.com/evan-goode/mania",
     author="Evan Goode",
@@ -11,11 +11,12 @@ setup(
     packages=find_packages(),
     install_requires=[
         "bidict",
+        "pycryptodome",
         "mutagen",
         "questionary",
         "requests",
-        "ruamel.yaml>=0.15",
+        "toml",
         "tqdm",
     ],
-    entry_points={"console_scripts": ["mania=mania.main:execute"]},
+    entry_points={"console_scripts": ["mania=mania.mania:main"]},
 )

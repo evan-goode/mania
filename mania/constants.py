@@ -1,24 +1,22 @@
-import ruamel.yaml
 import os
 
-YAML = ruamel.yaml.YAML(typ="safe", pure=True)
-YAML.default_flow_style = False
+import toml
 
-CONFIG_FILE = os.path.expanduser("~/.config/mania/config.yaml")
+CONFIG_PATH = os.path.expanduser("~/.config/mania/config.toml")
 INDENT = "  "
 TEMPORARY_EXTENSION = "part"
-CHUNK_SIZE = 1024
-DEFAULT_CONFIG = {
-    "tidal": False,
-    "tidal-username": None,
-    "tidal-password": None,
-    "tidal-quality": "lossless",
-    "lucky": False,
-    "quiet": False,
-    "nice-format": False,
-    "full-structure": False,
-    "skip-metadata": False,
-    "search-count": 8,
-    "output-directory": ".",
-    "various-artists": True,
-}
+DOWNLOAD_CHUNK_SIZE = 1024
+DEFAULT_CONFIG = """username = ""
+password = ""
+
+quality = "lossless"
+output-directory = "."
+lucky = false
+search-count = 16
+quiet = false
+nice-format = false
+full-structure = false
+skip-metadata = false
+"""
+
+DEFAULT_CONFIG_TOML = toml.loads(DEFAULT_CONFIG)

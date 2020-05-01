@@ -4,3 +4,4 @@ dist
 *.egg-info
 *.swp
 *.mp3
+.mypy_cache
