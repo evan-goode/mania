@@ -4,6 +4,7 @@ import locale
 import getpass
 import random
 from string import ascii_lowercase
+import time
 from typing import Any, Callable, List, Optional, Tuple, Type, Union
 
 from bidict import bidict
@@ -11,7 +12,7 @@ from Crypto.Cipher import AES
 from Crypto.Util import Counter
 import requests
 
-from .models import Track, Album, Artist, Client
+from .models import Track, Album, Artist, Client, UnavailableException
 
 LOCALE = locale.getlocale()[0]
 
@@ -27,6 +28,7 @@ CLIENT_UNIQUE_KEY_LENGTH = 21
 MASTER_KEY = "UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754="
 SPECIAL_AUDIO_MODES = frozenset(("DOLBY_ATMOS", "SONY_360RA"))
 COVER_ART_SIZE = 1280
+MAXIMUM_ATTEMPTS = 4
 
 
 class TidalClient(Client):
@@ -125,24 +127,42 @@ class TidalClient(Client):
         path: str,
         params: Optional[dict] = None,
         data: Optional[dict] = None,
-        session: Optional[requests.Session] = None,
+        use_master_session: bool = False,
+        attempt: int = 1,
     ) -> requests.models.Response:
-        params = {**(params or {}), "countryCode": self._country_code}
+
+        full_params = {**(params or {}), "countryCode": self._country_code}
         url = f"{API_ENDPOINT}/{path}"
 
-        session = session or self._session
+        session = self._master_session if use_master_session else self._session
 
-        request = session.request(method, url, params=params, data=data)
-        # request = session.request(
-        #     method,
-        #     url,
-        #     params=params,
-        #     data=data,
-        #     proxies={"https": "https://localhost:8000"},
-        #     verify="mitmproxy-ca-cert.pem",
-        # )
-        request.raise_for_status()
-        return request
+        try:
+            response = session.request(method, url, params=full_params, data=data)
+            # request = session.request(
+            #     method,
+            #     url,
+            #     params=params,
+            #     data=data,
+            #     proxies={"https": "https://localhost:8000"},
+            #     verify="mitmproxy-ca-cert.pem",
+            # )
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            if error.response.status_code == 429 and attempt < MAXIMUM_ATTEMPTS:
+                # re-authenticate and retry if we receive a 429 Client Error: Too Many Requests for url
+                time.sleep(2 ** attempt)
+                self.authenticate()
+                return self._request(
+                    method,
+                    path,
+                    params,
+                    data,
+                    use_master_session=use_master_session,
+                    attempt=attempt + 1,
+                )
+            raise error
+
+        return response
 
     def _paginate(
         self,
@@ -150,7 +170,7 @@ class TidalClient(Client):
         path: str,
         params: Optional[dict] = None,
         data: Optional[dict] = None,
-        session: Optional[requests.Session] = None,
+        use_master_session: bool = False,
     ) -> List[Any]:
         items = []
         params = {
@@ -161,7 +181,9 @@ class TidalClient(Client):
             **(params or {}),
         }
         while True:
-            response = self._request(method, path, params, data, session).json()
+            response = self._request(
+                method, path, params, data, use_master_session=use_master_session
+            ).json()
             items += response["items"]
             if len(items) >= response["totalNumberOfItems"]:
                 break
@@ -234,7 +256,7 @@ class TidalClient(Client):
     def _tidal_track_to_track(
         self, tidal_track: dict, album: Optional[Album] = None
     ) -> Track:
-        album = self.get_album(tidal_track["album"]["id"])
+        album = album or self.get_album(tidal_track["album"]["id"])
 
         artists = [
             self._tidal_artist_to_artist(tidal_artist)
@@ -282,31 +304,39 @@ class TidalClient(Client):
 
         decryptor: Optional[Callable[[str], None]]
 
-        if tidal_quality == "HI_RES":
-            response = self._request(
-                "GET",
-                f"tracks/{track.id}/streamUrl",
-                params={"soundQuality": tidal_quality,},
-                session=self._master_session,
-            ).json()
+        try:
+            if tidal_quality == "HI_RES":
+                response = self._request(
+                    "GET",
+                    f"tracks/{track.id}/streamUrl",
+                    params={"soundQuality": tidal_quality,},
+                    use_master_session=True,
+                ).json()
 
-            url = response["url"]
-            key, nonce = TidalClient._decrypt_security_token(response["encryptionKey"])
-            decryptor = partial(TidalClient._decrypt, key, nonce)
-        else:
-            response = self._request(
-                "GET",
-                f"tracks/{track.id}/urlpostpaywall",
-                params={
-                    "urlusagemode": "OFFLINE",
-                    "assetpresentation": "FULL",
-                    "prefetch": "false",
-                    "audioquality": tidal_quality,
-                },
-            ).json()
+                url = response["url"]
+                key, nonce = TidalClient._decrypt_security_token(
+                    response["encryptionKey"]
+                )
+                decryptor = partial(TidalClient._decrypt, key, nonce)
+            else:
+                response = self._request(
+                    "GET",
+                    f"tracks/{track.id}/urlpostpaywall",
+                    params={
+                        "urlusagemode": "OFFLINE",
+                        "assetpresentation": "FULL",
+                        "prefetch": "false",
+                        "audioquality": tidal_quality,
+                    },
+                ).json()
 
-            url = response["urls"][0]
-            decryptor = None
+                url = response["urls"][0]
+                decryptor = None
+        except requests.exceptions.HTTPError as error:
+            status_code = error.response.status_code
+            sub_status = error.response.json().get("subStatus")
+            if (status_code, sub_status) == (401, 4005):
+                raise UnavailableException()
 
         return url, decryptor
 
@@ -322,6 +352,7 @@ class TidalClient(Client):
                 f"pages/data/2fbf68c2-dc58-49b1-b1be-6958e66383f3",
                 params={"albumId": album.id,},
             )
+            if element["type"] == "track"
         ]
         return [
             self._tidal_track_to_track(tidal_track, album=album)

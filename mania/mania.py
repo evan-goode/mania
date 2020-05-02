@@ -9,17 +9,17 @@ import toml
 from tqdm import tqdm
 
 from . import constants
-from .models import Client, Track, Album, Artist
+from .models import (
+    ManiaException,
+    ManiaSeriousException,
+    UnavailableException,
+    Client,
+    Track,
+    Album,
+    Artist,
+)
 from . import metadata
 from .tidal import TidalClient
-
-
-class ManiaException(Exception):
-    exit_code = 0
-
-
-class ManiaSeriousException(ManiaException):
-    exit_code = 1
 
 
 def log(config: dict, message: str = "", indent: int = 0) -> None:
@@ -163,30 +163,14 @@ def download_track(
         )
         return
     try:
-        try:
-            media_url, decryptor = client.get_media(track)
-        except requests.exceptions.HTTPError as error:
-            if error.response.status_code == 429:
-                # re-authenticate and retry if we receive a 429 Client Error: Too Many Requests for url
-                log(
-                    config, f"Too many requests, logging out and back in...", indent=indent,
-                )
-                client.authenticate()
-                media_url, decryptor = client.get_media(track)
-            else:
-                raise error
-
-    except requests.exceptions.HTTPError as error:
-        status_code = error.response.status_code
-        sub_status = error.response.json().get("subStatus")
-        if (status_code, sub_status) == (401, 4005):
-            log(
-                config,
-                f"Skipping download of {os.path.basename(final_path)}; track is not available.",
-                indent=indent,
-            )
-            return
-        raise error
+        media_url, decryptor = client.get_media(track)
+    except UnavailableException:
+        log(
+            config,
+            f"Skipping download of {os.path.basename(final_path)}; track is not available.",
+            indent=indent,
+        )
+        return
     os.makedirs(os.path.dirname(final_path), exist_ok=True)
     request = requests.get(media_url, stream=True)
     request.raise_for_status()

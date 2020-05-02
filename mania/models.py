@@ -4,6 +4,18 @@ from enum import Enum
 from typing import Callable, List, NamedTuple, Optional, Tuple, Type, Union
 
 
+class ManiaException(Exception):
+    exit_code = 0
+
+
+class ManiaSeriousException(ManiaException):
+    exit_code = 1
+
+
+class UnavailableException(Exception):
+    pass
+
+
 class Artist(NamedTuple):
     id: str
     name: str
