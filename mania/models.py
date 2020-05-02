@@ -30,6 +30,10 @@ class Track(NamedTuple):
 
 class Client(ABC):
     @abstractmethod
+    def authenticate(self):
+        pass
+
+    @abstractmethod
     def search(
         self, query: str, media_type: Type[Union[Track, Album, Artist]], count: int
     ):

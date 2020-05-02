@@ -34,14 +34,15 @@ class TidalClient(Client):
         self._search_count = config["search-count"]
         self._quality = config["quality"]
 
-        username = config["username"] or input("Tidal username: ")
-        password = config["password"] or getpass.getpass("Tidal password: ")
+        self._username = config["username"] or input("Tidal username: ")
+        self._password = config["password"] or getpass.getpass("Tidal password: ")
 
+    def authenticate(self):
         self._session, self._country_code = TidalClient._get_session(
-            username, password, API_TOKEN
+            self._username, self._password, API_TOKEN
         )
         self._master_session, _ = TidalClient._get_session(
-            username, password, MASTER_API_TOKEN
+            self._username, self._password, MASTER_API_TOKEN
         )
 
     @staticmethod

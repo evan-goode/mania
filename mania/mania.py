@@ -163,12 +163,23 @@ def download_track(
         )
         return
     try:
-        media_url, decryptor = client.get_media(track)
+        try:
+            media_url, decryptor = client.get_media(track)
+        except requests.exceptions.HTTPError as error:
+            if error.response.status_code == 429:
+                # re-authenticate and retry if we receive a 429 Client Error: Too Many Requests for url
+                log(
+                    config, f"Too many requests, logging out and back in...", indent=indent,
+                )
+                client.authenticate()
+                media_url, decryptor = client.get_media(track)
+            else:
+                raise error
+
     except requests.exceptions.HTTPError as error:
-        if (
-            error.response.status_code == 401
-            and error.response.json().get("subStatus") == 4005
-        ):
+        status_code = error.response.status_code
+        sub_status = error.response.json().get("subStatus")
+        if (status_code, sub_status) == (401, 4005):
             log(
                 config,
                 f"Skipping download of {os.path.basename(final_path)}; track is not available.",
@@ -336,9 +347,11 @@ def run() -> None:
     args = vars(parsed_args)
     config = load_config(args)
 
+    client = TidalClient(config)
+
     log(config, "Authenticating...")
     try:
-        client = TidalClient(config)
+        client.authenticate()
     except requests.exceptions.HTTPError as error:
         if error.response.status_code in (400, 401):
             data = error.response.json()
