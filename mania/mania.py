@@ -299,7 +299,7 @@ def load_config(args: dict) -> dict:
 def run() -> None:
     parser = argparse.ArgumentParser()
     handlers = {
-        "track": handle_track,
+        "song": handle_track,
         "track": handle_track,
         "album": handle_album,
         "artist": handle_discography,
