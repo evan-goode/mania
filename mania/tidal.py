@@ -2,17 +2,20 @@ import base64
 from functools import partial
 import locale
 import getpass
+from operator import itemgetter
 import random
+import re
 from string import ascii_lowercase
 import time
-from typing import Any, Callable, List, Optional, Tuple, Type, Union
+from typing import cast, Any, Callable, List, Optional, Tuple, Type, Union
+from urllib.parse import urlparse
 
 from bidict import bidict
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 import requests
 
-from .models import Track, Album, Artist, Client, UnavailableException
+from .models import Track, Album, Artist, Media, MediaType, Client, UnavailableException
 
 LOCALE = locale.getlocale()[0]
 
@@ -46,6 +49,43 @@ class TidalClient(Client):
         self._master_session, _ = TidalClient._get_session(
             self._username, self._password, MASTER_API_TOKEN
         )
+
+    def resolve_url(self, url: str) -> Tuple[MediaType, Optional[Media]]:
+        parsed = urlparse(url)
+        path = parsed.path.strip("/")
+
+        # find the last occurrence of "track", "album", or "artist" in the URL
+        # path and assume that's the media type of the URL
+        strings = {
+            Track: "track",
+            Album: "album",
+            Artist: "artist",
+        }
+        indices = {
+            media_type: path.rfind(string) for media_type, string in strings.items()
+        }
+        media_type, last_index = max(indices.items(), key=itemgetter(1))
+
+        # if there were no matches
+        if last_index == -1:
+            raise ValueError(
+                'Couldn\'t parse that URL. Try one like "https://tidal.com/browse/track/140538043".'
+            )
+
+        media_id = path.split("/")[-1]
+
+        if not re.match(r"^\d+$", media_id):
+            raise ValueError(
+                'That URL doesn\'t end in an ID. Try one like "https://tidal.com/browse/track/140538043".'
+            )
+
+        handlers = {
+            Track: self.get_track_by_id,
+            Album: self.get_album_by_id,
+            Artist: self.get_artist_by_id,
+        }
+
+        return media_type, handlers[media_type](media_id)
 
     @staticmethod
     def _get_session(
@@ -200,7 +240,7 @@ class TidalClient(Client):
         else:
             year = None
 
-        cover_art_url: Optional[str]
+        cover_url: Optional[str]
         if tidal_album.get("cover"):
             cover_url = TidalClient._get_cover_url(tidal_album["cover"])
         else:
@@ -256,7 +296,8 @@ class TidalClient(Client):
     def _tidal_track_to_track(
         self, tidal_track: dict, album: Optional[Album] = None
     ) -> Track:
-        album = album or self.get_album(tidal_track["album"]["id"])
+        # we can be pretty sure that an album ID is valid if it comes from TIDAL
+        album = album or cast(Album, self.get_album_by_id(tidal_track["album"]["id"]))
 
         artists = [
             self._tidal_artist_to_artist(tidal_artist)
@@ -340,9 +381,29 @@ class TidalClient(Client):
 
         return url, decryptor
 
-    def get_album(self, album_id: str) -> Album:
-        tidal_album = self._request("GET", f"albums/{album_id}").json()
+    def get_track_by_id(self, track_id: str) -> Optional[Track]:
+        try:
+            tidal_track = self._request("GET", f"tracks/{track_id}").json()
+        except requests.HTTPError as error:
+            if error.response.status_code == 404:
+                return None
+        return self._tidal_track_to_track(tidal_track)
+
+    def get_album_by_id(self, album_id: str) -> Optional[Album]:
+        try:
+            tidal_album = self._request("GET", f"albums/{album_id}").json()
+        except requests.HTTPError as error:
+            if error.response.status_code == 404:
+                return None
         return self._tidal_album_to_album(tidal_album)
+
+    def get_artist_by_id(self, artist_id: str) -> Optional[Artist]:
+        try:
+            tidal_artist = self._request("GET", f"artists/{artist_id}").json()
+        except requests.HTTPError as error:
+            if error.response.status_code == 404:
+                return None
+        return self._tidal_artist_to_artist(tidal_artist)
 
     def get_album_tracks(self, album: Album) -> List[Track]:
         tidal_tracks = [

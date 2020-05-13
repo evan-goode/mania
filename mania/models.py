@@ -40,15 +40,17 @@ class Track(NamedTuple):
     extension: str
 
 
+Media = Union[Track, Album, Artist]
+MediaType = Union[Type[Track], Type[Album], Type[Artist]]
+
+
 class Client(ABC):
     @abstractmethod
     def authenticate(self):
         pass
 
     @abstractmethod
-    def search(
-        self, query: str, media_type: Type[Union[Track, Album, Artist]], count: int
-    ):
+    def search(self, query: str, media_type: MediaType, count: int):
         pass
 
     @abstractmethod
@@ -61,4 +63,20 @@ class Client(ABC):
 
     @abstractmethod
     def get_media(self, track: Track) -> Tuple[str, Optional[Callable[[str], None]]]:
+        pass
+
+    @abstractmethod
+    def get_artist_by_id(self, artist_id: str):
+        pass
+
+    @abstractmethod
+    def get_album_by_id(self, album_id: str):
+        pass
+
+    @abstractmethod
+    def get_track_by_id(self, track_id: str):
+        pass
+
+    @abstractmethod
+    def resolve_url(self, url: str) -> Tuple[MediaType, Optional[Media]]:
         pass

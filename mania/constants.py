@@ -11,6 +11,7 @@ password = ""
 
 quality = "lossless"
 output-directory = "."
+by-id = false
 lucky = false
 search-count = 16
 quiet = false
@@ -18,5 +19,4 @@ nice-format = false
 full-structure = false
 skip-metadata = false
 """
-
 DEFAULT_CONFIG_TOML = toml.loads(DEFAULT_CONFIG)

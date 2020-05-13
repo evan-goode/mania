@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import requests
-from typing import List, Optional, Type, Union
+from typing import cast, Callable, List, Optional, Type
 
 import questionary
 import toml
@@ -17,6 +17,8 @@ from .models import (
     Track,
     Album,
     Artist,
+    Media,
+    MediaType,
 )
 from . import metadata
 from .tidal import TidalClient
@@ -39,12 +41,26 @@ def sanitize(config: dict, string: str) -> str:
 def search(
     client: Client,
     config: dict,
-    media_type: Type[Union[Track, Album, Artist]],
+    media_type: MediaType,
     query: str,
-) -> Union[Track, Album, Artist]:
+) -> Media:
+    if config["by-id"]:
+        result = {
+            Track: client.get_track_by_id,
+            Album: client.get_album_by_id,
+            Artist: client.get_artist_by_id,
+        }[media_type](query)
+        if result is None:
+            media_type_name = {Track: "track", Album: "album", Artist: "artist",}[
+                media_type
+            ]
+            raise ManiaSeriousException(
+                f"Couldn't find the {media_type_name} with ID {query}."
+            )
+        return result
+
     log(config, "Searching...")
-    string = " ".join(query)
-    results = client.search(string, media_type, config["search-count"])
+    results = client.search(query, media_type, config["search-count"])
     if not results:
         raise ManiaSeriousException("No results found.")
     if config["lucky"]:
@@ -213,15 +229,9 @@ def download_track(
 
 
 def handle_track(client: Client, config: dict, query: str) -> None:
-    track = search(client, config, Track, query)
+    track = cast(Track, search(client, config, Track, query))
     log(config, f'Downloading "{track.name}"...')
     download_track(client, config, track)
-
-
-def handle_album(client: Client, config: dict, query: str) -> None:
-    album = search(client, config, Album, query)
-    log(config, f'Downloading "{album.name}"...')
-    download_album(client, config, album)
 
 
 def download_album(
@@ -249,13 +259,13 @@ def download_album(
         )
 
 
-def handle_discography(client: Client, config: dict, query: str) -> None:
-    artist = search(client, config, Artist, query)
-    log(config, f'Downloading "{artist.name}"...')
-    download_discography(client, config, artist)
+def handle_album(client: Client, config: dict, query: str) -> None:
+    album = cast(Album, search(client, config, Album, query))
+    log(config, f'Downloading "{album.name}"...')
+    download_album(client, config, album)
 
 
-def download_discography(
+def download_artist(
     client: Client, config: dict, artist: Artist, indent: int = 0
 ) -> None:
     albums = client.get_artist_albums(artist)
@@ -266,6 +276,31 @@ def download_discography(
             indent=indent,
         )
         download_album(client, config, album, include_artist=True, indent=indent + 1)
+
+
+def handle_artist(client: Client, config: dict, query: str) -> None:
+    artist = cast(Artist, search(client, config, Artist, query))
+    log(config, f'Downloading "{artist.name}"...')
+    download_artist(client, config, artist)
+
+
+def handle_url(client: Client, config: dict, url: str):
+    try:
+        media_type, media = client.resolve_url(url)
+    except ValueError as error:
+        raise ManiaSeriousException(str(error)) from error
+
+    if media is None:
+        raise ManiaSeriousException(f"Couldn't find anything at that URL.")
+
+    log(config, f'Downloading "{media.name}"...')
+    downloader = {
+        Track: download_track,
+        Album: download_album,
+        Artist: download_artist,
+    }[media_type]
+
+    downloader(client, config, media)
 
 
 def load_config(args: dict) -> dict:
@@ -298,37 +333,35 @@ def load_config(args: dict) -> dict:
 
 def run() -> None:
     parser = argparse.ArgumentParser()
+
     handlers = {
-        "song": handle_track,
         "track": handle_track,
         "album": handle_album,
-        "artist": handle_discography,
-        "discography": handle_discography,
+        "artist": handle_artist,
+        "url": handle_url,
     }
-    subparsers = parser.add_subparsers(dest="query")
-    subparsers.required = True
-    for name, handler in handlers.items():
-        subparser = subparsers.add_parser(name)
-        subparser.add_argument("query", nargs="+")
-        for key, value in constants.DEFAULT_CONFIG_TOML.items():
-            if isinstance(value, bool):
-                boolean = subparser.add_mutually_exclusive_group()
+    parser.add_argument("command", choices=handlers.keys())
 
-                # we don't use store_true/store_false here because we need the
-                # default value to be None, not False/True.
-                boolean.add_argument(
-                    f"--{key}", action="store_const", const=True, dest=key
-                )
-                boolean.add_argument(
-                    f"--no-{key}", action="store_const", const=False, dest=key
-                )
-            else:
-                subparser.add_argument(f"--{key}", nargs="?", dest=key)
-        subparser.add_argument("--config-path", dest="config-path")
-        subparser.set_defaults(func=handler)
+    parser.add_argument("--config-path", dest="config-path")
+
+    for key, value in constants.DEFAULT_CONFIG_TOML.items():
+        if isinstance(value, bool):
+            boolean = parser.add_mutually_exclusive_group()
+
+            # we don't use store_true/store_false here because we need the
+            # default value to be None, not False/True.
+            boolean.add_argument(f"--{key}", action="store_const", const=True, dest=key)
+            boolean.add_argument(
+                f"--no-{key}", action="store_const", const=False, dest=key
+            )
+        else:
+            parser.add_argument(f"--{key}", nargs="?", dest=key)
+
+    parser.add_argument("query", nargs="+")
 
     parsed_args = parser.parse_args()
     args = vars(parsed_args)
+
     config = load_config(args)
 
     client = TidalClient(config)
@@ -343,7 +376,7 @@ def run() -> None:
             raise ManiaSeriousException(f"Authentication failed: {message}")
         raise error
 
-    parsed_args.func(client, config, args["query"])
+    handlers[args["command"]](client, config, " ".join(args["query"]))
     log(config, "Done!")
 
 
