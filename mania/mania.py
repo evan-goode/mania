@@ -1,10 +1,10 @@
 import sys
 import os
 import argparse
-import requests
 from typing import cast, Callable, List, Optional, Type
 
 import questionary
+import requests
 import toml
 from tqdm import tqdm
 
@@ -383,12 +383,15 @@ def run() -> None:
 def main() -> None:
     try:
         run()
+    except requests.exceptions.HTTPError as error:
+        print(f"Uncaught HTTP Error:\n{error.response}", file=sys.stderr)
+        sys.exit(1)
     except ManiaException as exception:
         if str(exception):
             print(exception, file=sys.stderr)
         sys.exit(exception.exit_code)
     except KeyboardInterrupt:
-        sys.exit(1)
+        sys.exit(0)
 
 
 if __name__ == "__main__":

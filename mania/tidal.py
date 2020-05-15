@@ -2,6 +2,7 @@ import base64
 from functools import partial
 import locale
 import getpass
+import json
 from operator import itemgetter
 import random
 import re
@@ -22,16 +23,18 @@ LOCALE = locale.getlocale()[0]
 # API_SCHEME_AND_DOMAIN = "https://api.tidalhifi.com"
 API_ENDPOINT = "https://api.tidalhifi.com/v1"
 API_TOKEN = "MbjR4DLXz1ghC4rV"
-MASTER_API_TOKEN = ""
 USER_AGENT = "TIDAL_ANDROID/879 okhttp/3.10.0"
 CLIENT_VERSION = "1.9.1"
 DEVICE_TYPE = "TABLET"
 MAXIMUM_LIMIT = 50
 CLIENT_UNIQUE_KEY_LENGTH = 21
-MASTER_KEY = "UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754="
+
 SPECIAL_AUDIO_MODES = frozenset(("DOLBY_ATMOS", "SONY_360RA"))
 COVER_ART_SIZE = 1280
 MAXIMUM_ATTEMPTS = 4
+
+# currently unused
+MASTER_KEY = "UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754="
 
 
 class TidalClient(Client):
@@ -174,7 +177,8 @@ class TidalClient(Client):
         full_params = {**(params or {}), "countryCode": self._country_code}
         url = f"{API_ENDPOINT}/{path}"
 
-        session = self._master_session if use_master_session else self._session
+        # session = self._master_session if use_master_session else self._session
+        session = self._session
 
         try:
             response = session.request(method, url, params=full_params, data=data)
@@ -269,9 +273,7 @@ class TidalClient(Client):
         if tidal_track["audioQuality"] == "LOSSLESS" or special_audio_modes:
             available_qualities = frozenset(("lossless", "high", "low"))
         elif tidal_track["audioQuality"] == "HI_RES":
-            # available_qualities = frozenset(("master", "lossless", "high", "low"))
-            # MQA downloading temporarily broken
-            available_qualities = frozenset(("lossless", "high", "low"))
+            available_qualities = frozenset(("master", "lossless", "high", "low"))
         elif tidal_track["audioQuality"] == "HIGH":
             available_qualities = frozenset(("high", "low"))
         elif tidal_track["audioQuality"] == "LOW":
@@ -348,28 +350,46 @@ class TidalClient(Client):
         decryptor: Optional[Callable[[str], None]]
 
         try:
-            is_encrypted = tidal_quality == "HI_RES"
-
             response = self._request(
                 "GET",
-                f"tracks/{track.id}/streamUrl",
-                params={"soundQuality": tidal_quality,},
-                use_master_session=is_encrypted
+                f"tracks/{track.id}/playbackinfopostpaywall",
+                params={
+                    "audioquality": tidal_quality,
+                    "playbackmode": "STREAM",
+                    "assetpresentation": "FULL",
+                },
             ).json()
 
-            url = response["url"]
-            if is_encrypted:
-                key, nonce = TidalClient._decrypt_security_token(
-                    response["encryptionKey"]
-                )
-                decryptor = partial(TidalClient._decrypt, key, nonce)
-            else:
-                decryptor = None
+            # MQA files don't seem to be encrypted if we get the URLs this way
+            manifest = json.loads(base64.b64decode(response["manifest"]))
+            url = manifest["urls"][0]
+
+            decryptor = None
+
+            # response = self._request(
+            #     "GET",
+            #     f"tracks/{track.id}/streamUrl",
+            #     params={"soundQuality": tidal_quality,},
+            #     use_master_session=False
+            # ).json()
+            # print("response", response)
+
+            # url = response["url"]
+            # if response.get("encryptionKey"):
+            #     print("encryption key is", response["encryptionKey"])
+            #     key, nonce = TidalClient._decrypt_security_token(
+            #         response["encryptionKey"]
+            #     )
+            #     decryptor = partial(TidalClient._decrypt, key, nonce)
+            # else:
+            #     decryptor = None
         except requests.exceptions.HTTPError as error:
             status_code = error.response.status_code
             sub_status = error.response.json().get("subStatus")
             if (status_code, sub_status) == (401, 4005):
                 raise UnavailableException()
+            else:
+                raise error
 
         return url, decryptor
 

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="mania",
-    version="4.1.0",
+    version="4.1.1",
     description="A command-line tool for downloading music from TIDAL",
     url="https://github.com/evan-goode/mania",
     author="Evan Goode",
