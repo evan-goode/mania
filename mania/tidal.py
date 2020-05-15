@@ -21,8 +21,8 @@ LOCALE = locale.getlocale()[0]
 
 # API_SCHEME_AND_DOMAIN = "https://api.tidalhifi.com"
 API_ENDPOINT = "https://api.tidalhifi.com/v1"
-API_TOKEN = "pl4Vc0hemlAXD0mN"
-MASTER_API_TOKEN = "u5qPNNYIbD0S0o36MrAiFZ56K6qMCrCmYPzZuTnV"
+API_TOKEN = "MbjR4DLXz1ghC4rV"
+MASTER_API_TOKEN = ""
 USER_AGENT = "TIDAL_ANDROID/879 okhttp/3.10.0"
 CLIENT_VERSION = "1.9.1"
 DEVICE_TYPE = "TABLET"
@@ -46,9 +46,9 @@ class TidalClient(Client):
         self._session, self._country_code = TidalClient._get_session(
             self._username, self._password, API_TOKEN
         )
-        self._master_session, _ = TidalClient._get_session(
-            self._username, self._password, MASTER_API_TOKEN
-        )
+        # self._master_session, _ = TidalClient._get_session(
+        #     self._username, self._password, MASTER_API_TOKEN
+        # )
 
     def resolve_url(self, url: str) -> Tuple[MediaType, Optional[Media]]:
         parsed = urlparse(url)
@@ -269,7 +269,9 @@ class TidalClient(Client):
         if tidal_track["audioQuality"] == "LOSSLESS" or special_audio_modes:
             available_qualities = frozenset(("lossless", "high", "low"))
         elif tidal_track["audioQuality"] == "HI_RES":
-            available_qualities = frozenset(("master", "lossless", "high", "low"))
+            # available_qualities = frozenset(("master", "lossless", "high", "low"))
+            # MQA downloading temporarily broken
+            available_qualities = frozenset(("lossless", "high", "low"))
         elif tidal_track["audioQuality"] == "HIGH":
             available_qualities = frozenset(("high", "low"))
         elif tidal_track["audioQuality"] == "LOW":
@@ -346,32 +348,22 @@ class TidalClient(Client):
         decryptor: Optional[Callable[[str], None]]
 
         try:
-            if tidal_quality == "HI_RES":
-                response = self._request(
-                    "GET",
-                    f"tracks/{track.id}/streamUrl",
-                    params={"soundQuality": tidal_quality,},
-                    use_master_session=True,
-                ).json()
+            is_encrypted = tidal_quality == "HI_RES"
 
-                url = response["url"]
+            response = self._request(
+                "GET",
+                f"tracks/{track.id}/streamUrl",
+                params={"soundQuality": tidal_quality,},
+                use_master_session=is_encrypted
+            ).json()
+
+            url = response["url"]
+            if is_encrypted:
                 key, nonce = TidalClient._decrypt_security_token(
                     response["encryptionKey"]
                 )
                 decryptor = partial(TidalClient._decrypt, key, nonce)
             else:
-                response = self._request(
-                    "GET",
-                    f"tracks/{track.id}/urlpostpaywall",
-                    params={
-                        "urlusagemode": "OFFLINE",
-                        "assetpresentation": "FULL",
-                        "prefetch": "false",
-                        "audioquality": tidal_quality,
-                    },
-                ).json()
-
-                url = response["urls"][0]
                 decryptor = None
         except requests.exceptions.HTTPError as error:
             status_code = error.response.status_code
