@@ -73,12 +73,17 @@ def search(
         indent = constants.INDENT + " " * 3
         year = track.album.year
 
-        label = f"{name}\n{indent}{artists}\n{indent}{album}"
-        if year:
-            label += f" ({year})"
+        label = name
         if track.explicit:
             label += " [E]"
         if track.best_available_quality == "master":
+            label += " [M]"
+        label += f"\n{indent}{artists}\n{indent}{album}"
+        if year:
+            label += f" ({year})"
+        if track.album.explicit:
+            label += " [E]"
+        if track.album.best_available_quality == "master":
             label += " [M]"
         return label
 
