@@ -26,7 +26,9 @@ class Album(NamedTuple):
     name: str
     artists: List[Artist]
     year: Optional[str]
+    explicit: bool
     cover_url: Optional[str]
+    best_available_quality: str
 
 
 class Track(NamedTuple):
@@ -34,10 +36,12 @@ class Track(NamedTuple):
     name: str
     artists: List[Artist]
     album: Album
+    explicit: bool
     track_number: int
     disc_number: int
-    quality: str
-    extension: str
+    chosen_quality: str
+    best_available_quality: str
+    file_extension: str
 
 
 Media = Union[Track, Album, Artist]

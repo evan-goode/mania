@@ -10,7 +10,6 @@ setup(
     license="The Unlicense",
     packages=find_packages(),
     install_requires=[
-        "bidict",
         "pycryptodome",
         "mutagen",
         "questionary",

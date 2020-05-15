@@ -11,7 +11,6 @@ import time
 from typing import cast, Any, Callable, List, Optional, Tuple, Type, Union
 from urllib.parse import urlparse
 
-from bidict import bidict
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 import requests
@@ -192,7 +191,11 @@ class TidalClient(Client):
             # )
             response.raise_for_status()
         except requests.exceptions.HTTPError as error:
-            if error.response.status_code == 429 and attempt < MAXIMUM_ATTEMPTS:
+            status = error.response.status_code
+            if (
+                status == 429
+                or (status == 500 and error.response.json().get("subStatus") == 999)
+            ) and attempt < MAXIMUM_ATTEMPTS:
                 # re-authenticate and retry if we receive a 429 Client Error: Too Many Requests for url
                 time.sleep(2 ** attempt)
                 self.authenticate()
@@ -234,6 +237,39 @@ class TidalClient(Client):
             params["offset"] += params["limit"]
         return items
 
+    def _get_quality(self, tidal_object: dict) -> Tuple[str, str]:
+        quality_levels = {"low": 1, "high": 2, "lossless": 3, "master": 4}
+
+        special_audio_modes = (
+            frozenset(tidal_object.get("audioModes", ())) & SPECIAL_AUDIO_MODES
+        )
+
+        if tidal_object["audioQuality"] == "LOSSLESS" or special_audio_modes:
+            available_qualities = frozenset(("lossless", "high", "low"))
+            best_available = "lossless"
+        elif tidal_object["audioQuality"] == "HI_RES":
+            available_qualities = frozenset(("master", "lossless", "high", "low"))
+            best_available = "master"
+        elif tidal_object["audioQuality"] == "HIGH":
+            available_qualities = frozenset(("high", "low"))
+            best_available = "high"
+        elif tidal_object["audioQuality"] == "LOW":
+            available_qualities = frozenset(("low",))
+            best_available = "low"
+
+        # get highest quality available, limited by self._quality preference
+        desired_level = quality_levels[self._quality]
+        chosen_quality = max(
+            (
+                quality
+                for quality, level in quality_levels.items()
+                if level <= desired_level and quality in available_qualities
+            ),
+            key=quality_levels.get,
+        )
+
+        return chosen_quality, best_available
+
     def _tidal_artist_to_artist(self, tidal_artist: dict) -> Artist:
         return Artist(id=tidal_artist["id"], name=tidal_artist["name"])
 
@@ -255,47 +291,17 @@ class TidalClient(Client):
             for tidal_artist in tidal_album["artists"]
         ]
 
+        _, best_available_quality = self._get_quality(tidal_album)
+
         return Album(
             id=tidal_album["id"],
             name=tidal_album["title"],
             artists=artists,
             year=year,
             cover_url=cover_url,
+            best_available_quality=best_available_quality,
+            explicit=tidal_album.get("explicit", False),
         )
-
-    def _get_quality_extension(self, tidal_track: dict) -> Tuple[str, str]:
-        quality_levels = bidict({"low": 1, "high": 2, "lossless": 3, "master": 4})
-
-        special_audio_modes = (
-            frozenset(tidal_track.get("audioModes", ())) & SPECIAL_AUDIO_MODES
-        )
-
-        if tidal_track["audioQuality"] == "LOSSLESS" or special_audio_modes:
-            available_qualities = frozenset(("lossless", "high", "low"))
-        elif tidal_track["audioQuality"] == "HI_RES":
-            available_qualities = frozenset(("master", "lossless", "high", "low"))
-        elif tidal_track["audioQuality"] == "HIGH":
-            available_qualities = frozenset(("high", "low"))
-        elif tidal_track["audioQuality"] == "LOW":
-            available_qualities = frozenset(("low",))
-
-        # get highest quality available, limited by self._quality preference
-        desired_level = quality_levels[self._quality]
-        level = max(
-            level
-            for quality, level in quality_levels.items()
-            if level <= desired_level and quality in available_qualities
-        )
-        quality = quality_levels.inverse[level]
-
-        extension = {
-            "master": "flac",
-            "lossless": "flac",
-            "high": "mp4",
-            "low": "mp4",
-        }[quality]
-
-        return quality, extension
 
     def _tidal_track_to_track(
         self, tidal_track: dict, album: Optional[Album] = None
@@ -308,16 +314,26 @@ class TidalClient(Client):
             for tidal_artist in tidal_track["artists"]
         ]
 
-        quality, extension = self._get_quality_extension(tidal_track)
+        chosen_quality, best_available_quality = self._get_quality(tidal_track)
+
+        file_extension = {
+            "master": "flac",
+            "lossless": "flac",
+            "high": "mp4",
+            "low": "mp4",
+        }[chosen_quality]
+
         return Track(
             id=tidal_track["id"],
             name=tidal_track["title"],
             artists=artists,
             album=album,
+            explicit=tidal_track.get("explicit", False),
             track_number=tidal_track["trackNumber"],
             disc_number=tidal_track["volumeNumber"],
-            quality=quality,
-            extension=extension,
+            chosen_quality=chosen_quality,
+            best_available_quality=best_available_quality,
+            file_extension=file_extension,
         )
 
     def search(
@@ -345,7 +361,7 @@ class TidalClient(Client):
             "lossless": "LOSSLESS",
             "high": "HIGH",
             "low": "LOW",
-        }[track.quality]
+        }[track.chosen_quality]
 
         decryptor: Optional[Callable[[str], None]]
 
@@ -372,11 +388,9 @@ class TidalClient(Client):
             #     params={"soundQuality": tidal_quality,},
             #     use_master_session=False
             # ).json()
-            # print("response", response)
 
             # url = response["url"]
             # if response.get("encryptionKey"):
-            #     print("encryption key is", response["encryptionKey"])
             #     key, nonce = TidalClient._decrypt_security_token(
             #         response["encryptionKey"]
             #     )

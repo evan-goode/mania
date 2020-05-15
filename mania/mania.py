@@ -72,20 +72,32 @@ def search(
         album = track.album.name
         indent = constants.INDENT + " " * 3
         year = track.album.year
+
+        label = f"{name}\n{indent}{artists}\n{indent}{album}"
         if year:
-            return f"{name}\n{indent}{artists}\n{indent}{album} ({year})"
-        else:
-            return f"{name}\n{indent}{artists}\n{indent}{album}"
+            label += f" ({year})"
+        if track.explicit:
+            label += " [E]"
+        if track.best_available_quality == "master":
+            label += " [M]"
+        return label
 
     def label_album(album: Album) -> str:
         name = album.name
         artists = ", ".join([artist.name for artist in album.artists])
         indent = constants.INDENT + " " * 3
         year = album.year
+
+        label = name
         if year:
-            return f"{name} ({year})\n{indent}{artists}"
-        else:
-            return f"{name}\n{indent}{artists}\n"
+            label += f" ({year})"
+        if album.explicit:
+            label += " [E]"
+        if album.best_available_quality == "master":
+            label += " [M]"
+        label += f"\n{indent}{artists}"
+        return label
+
 
     def label_artist(artist: Artist) -> str:
         return artist.name
@@ -115,7 +127,7 @@ def resolve_metadata(config: dict, track: Track, path: str, indent: int) -> None
         cover = None
 
     {"mp4": metadata.resolve_mp4_metadata, "flac": metadata.resolve_flac_metadata}[
-        track.extension
+        track.file_extension
     ](config, track, path, cover)
 
 
@@ -169,8 +181,8 @@ def download_track(
         include_artist=include_artist,
         include_album=include_album,
     )
-    temporary_path = f"{track_path}.{constants.TEMPORARY_EXTENSION}.{track.extension}"
-    final_path = f"{track_path}.{track.extension}"
+    temporary_path = f"{track_path}.{constants.TEMPORARY_EXTENSION}.{track.file_extension}"
+    final_path = f"{track_path}.{track.file_extension}"
     if os.path.isfile(final_path):
         log(
             config,
@@ -384,7 +396,7 @@ def main() -> None:
     try:
         run()
     except requests.exceptions.HTTPError as error:
-        print(f"Uncaught HTTP Error:\n{error.response}", file=sys.stderr)
+        print(f"Uncaught HTTP Error:\n{error.response.content}", file=sys.stderr)
         sys.exit(1)
     except ManiaException as exception:
         if str(exception):
