@@ -153,8 +153,8 @@ def get_track_path(
 
     if include_album or config["full-structure"]:
         siblings = siblings or client.get_album_tracks(track.album)
-        maximum_disc_number = max([sibling.disc_number for sibling in siblings])
-        maximum_track_number = max([sibling.track_number for sibling in siblings])
+        maximum_disc_number = max(sibling.disc_number for sibling in siblings)
+        maximum_track_number = max(sibling.track_number for sibling in siblings)
         album_path = sanitize(config, track.album.name)
         if maximum_disc_number > 1:
             disc_number = str(track.disc_number).zfill(len(str(maximum_disc_number)))
@@ -390,6 +390,7 @@ def run() -> None:
         if error.response.status_code in (400, 401):
             data = error.response.json()
             message = data["userMessage"]
+            print(data)
             raise ManiaSeriousException(f"Authentication failed: {message}")
         raise error
 

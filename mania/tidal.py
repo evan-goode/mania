@@ -21,7 +21,7 @@ LOCALE = locale.getlocale()[0]
 
 # API_SCHEME_AND_DOMAIN = "https://api.tidalhifi.com"
 API_ENDPOINT = "https://api.tidalhifi.com/v1"
-API_TOKEN = "MbjR4DLXz1ghC4rV"
+API_TOKEN = "wc8j_yBJd20zOmx0"
 USER_AGENT = "TIDAL_ANDROID/879 okhttp/3.10.0"
 CLIENT_VERSION = "1.9.1"
 DEVICE_TYPE = "TABLET"
