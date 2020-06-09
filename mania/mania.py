@@ -382,6 +382,8 @@ def run() -> None:
     config = load_config(args)
 
     client = TidalClient(config)
+    
+    log(config, "Warning: MQA support is currently broken. Files requested as `master` quality will download as `lossless`.")
 
     log(config, "Authenticating...")
     try:
