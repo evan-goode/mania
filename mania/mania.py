@@ -1,6 +1,6 @@
-import sys
-import os
 import argparse
+import os
+import sys
 from typing import cast, Callable, List, Optional, Type
 
 import questionary
@@ -29,13 +29,21 @@ def log(config: dict, message: str = "", indent: int = 0) -> None:
         print(constants.INDENT * indent + str(message))
 
 
-def sanitize(config: dict, string: str) -> str:
-    if not config["nice-format"]:
+def sanitize(config: dict, string: str, length_padding: int = 0) -> str:
+    if config["nice-format"]:
+        alphanumeric = "".join(c for c in string if c.isalnum() or c in (" ", "-"))
+        hyphenated = alphanumeric.replace(" ", "-")
+        sanitized = "-".join(word for word in hyphenated.split("-") if word).lower()
+    else:
         illegal_characters = frozenset("/")
-        return "".join(c for c in string if c not in illegal_characters)
-    alphanumeric = "".join(c for c in string if c.isalnum() or c in (" ", "-"))
-    hyphenated = alphanumeric.replace(" ", "-")
-    return "-".join(word for word in hyphenated.split("-") if word).lower()
+        sanitized = "".join(c for c in string if c not in illegal_characters)
+
+    # get maximum filename length (bytes)
+    max_length = os.statvfs(config["output-directory"]).f_namemax
+
+    # truncate unicode string to a byte count
+    encoded = sanitized.encode("utf-8")[:max_length - length_padding]
+    return encoded.decode("utf-8", "ignore")
 
 
 def search(
@@ -148,6 +156,9 @@ def get_track_path(
     album_path = ""
     disc_path = ""
     file_path = ""
+
+    temporary_extension = f".{constants.TEMPORARY_EXTENSION}.{track.file_extension}"
+
     if include_artist or config["full-structure"]:
         artist_path = sanitize(config, track.album.artists[0].name)
 
@@ -160,9 +171,9 @@ def get_track_path(
             disc_number = str(track.disc_number).zfill(len(str(maximum_disc_number)))
             disc_path = sanitize(config, f"Disc {disc_number}")
         track_number = str(track.track_number).zfill(len(str(maximum_track_number)))
-        file_path = sanitize(config, f"{track_number} {track.name}")
+        file_path = sanitize(config, f"{track_number} {track.name}", length_padding=len(temporary_extension))
     else:
-        file_path = sanitize(config, track.name)
+        file_path = sanitize(config, track.name, length_padding=len(temporary_extension))
 
     return os.path.join(
         config["output-directory"], artist_path, album_path, disc_path, file_path
