@@ -166,12 +166,16 @@ def get_track_path(
         siblings = siblings or client.get_album_tracks(track.album)
         maximum_disc_number = max(sibling.disc_number for sibling in siblings)
         maximum_track_number = max(sibling.track_number for sibling in siblings)
-        album_path = sanitize(config, track.album.name)
+        if track.album.year:
+            album_path = sanitize(config, f"[{track.album.year}] - {track.album.name}")
+        else:
+            album_path = sanitize(config, track.album.name)
         if maximum_disc_number > 1:
             disc_number = str(track.disc_number).zfill(len(str(maximum_disc_number)))
             disc_path = sanitize(config, f"Disc {disc_number}")
         track_number = str(track.track_number).zfill(len(str(maximum_track_number)))
-        file_path = sanitize(config, f"{track_number} {track.name}", length_padding=len(temporary_extension))
+        artists_string = ", ".join(artist.name for artist in track.artists)
+        file_path = sanitize(config, f"{track_number} - {artists_string} - {track.name}", length_padding=len(temporary_extension))
     else:
         file_path = sanitize(config, track.name, length_padding=len(temporary_extension))
 
