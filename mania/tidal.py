@@ -1,18 +1,16 @@
-import base64
-from functools import partial
-import locale
-import getpass
-import json
-from operator import itemgetter
-import random
-import re
-from string import ascii_lowercase
-import time
-from typing import cast, Any, Callable, List, Optional, Tuple, Type, Union
-from urllib.parse import urlparse
+"""Tidal authentication and API client"""
 
-from Crypto.Cipher import AES
-from Crypto.Util import Counter
+from operator import itemgetter
+from typing import cast, Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from urllib.parse import urlparse
+import base64
+import datetime
+import json
+import locale
+import re
+import sys
+import time
+
 import requests
 
 from .models import Track, Album, Artist, Media, MediaType, Client, UnavailableException
@@ -21,36 +19,257 @@ LOCALE = locale.getlocale()[0]
 
 # API_SCHEME_AND_DOMAIN = "https://api.tidalhifi.com"
 API_ENDPOINT = "https://api.tidalhifi.com/v1"
-API_TOKEN = "wc8j_yBJd20zOmx0"
-USER_AGENT = "TIDAL_ANDROID/879 okhttp/3.10.0"
-CLIENT_VERSION = "1.9.1"
+AUTH_ENDPOINT = "https://auth.tidal.com/v1"
+CLIENT_ID = "aR7gUaTK1ihpXOEP"
+CLIENT_SECRET = "eVWBEkuL2FCjxgjOkR3yK0RYZEbcrMXRc2l8fU3ZCdE="
 DEVICE_TYPE = "TABLET"
+USER_AGENT = "TIDAL_ANDROID/1000 okhttp/3.10.0"
+CLIENT_VERSION = "2.26.1"
 MAXIMUM_LIMIT = 50
-CLIENT_UNIQUE_KEY_LENGTH = 21
 
 SPECIAL_AUDIO_MODES = frozenset(("DOLBY_ATMOS", "SONY_360RA"))
 COVER_ART_SIZE = 1280
 MAXIMUM_ATTEMPTS = 4
 
-# currently unused
-MASTER_KEY = "UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754="
+
+class TidalAuthError(Exception):
+    """Error authenticating to TIDAL"""
+
+
+class TidalSession:
+    """Adapted from
+    https://github.com/Dniel97/RedSea/blob/master/redsea/sessions.py. Thanks,
+    Daniel!"""
+
+    def __init__(
+        self,
+        device_code: Optional[str] = None,
+        user_code: Optional[str] = None,
+        country_code: Optional[str] = None,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        user_id: Optional[str] = None,
+        expires: Optional[datetime.datetime] = None,
+    ):
+        self.device_code = device_code
+        self.user_code = user_code
+        self.country_code = country_code
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.user_id = user_id
+        self.expires = expires
+        self._session = requests.Session()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Get the session parameters as a dict, for serialization"""
+        return {
+            "device_code": self.device_code,
+            "user_code": self.user_code,
+            "country_code": self.country_code,
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token,
+            "user_id": self.user_id,
+            "expires": self.expires,
+        }
+
+    def check_valid(self) -> None:
+        """Raise a TidalAuthError if session is invalid"""
+        if self.access_token is None:
+            raise TidalAuthError("Missing access token.")
+
+        if self.expires is not None and datetime.datetime.now() > self.expires:
+            self._refresh()
+        subscription_response = self.request(
+            "GET", f"users/{self.user_id}/subscription"
+        )
+        try:
+            subscription_response.raise_for_status()
+            assert subscription_response.json()["subscription"]["type"] == "HIFI"
+        except requests.exceptions.HTTPError as error:
+            raise TidalAuthError("Session is invalid.") from error
+        except AssertionError as error:
+            raise TidalAuthError("You need a HiFi subscription.") from error
+
+    def authenticate(self) -> None:
+        """Authenticate as a new linked device"""
+        # retrieve csrf token for subsequent request
+        authorization_response = self._session.post(
+            f"{AUTH_ENDPOINT}/oauth2/device_authorization",
+            data={
+                "client_id": CLIENT_ID,
+                "scope": "r_usr w_usr",
+            },
+        )
+
+        if authorization_response.status_code == 400:
+            raise TidalAuthError(
+                "Authorization failed! Is the clientid/token up to date?"
+            )
+        try:
+            authorization_response.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            raise TidalAuthError("Authorization failed!") from error
+
+        authorization_json = authorization_response.json()
+        self.device_code = authorization_json["deviceCode"]
+        self.user_code = authorization_json["userCode"]
+        print(
+            "Go to https://link.tidal.com/{} and log in or sign up to TIDAL.".format(
+                self.user_code
+            )
+        )
+
+        data = {
+            "client_id": CLIENT_ID,
+            "device_code": self.device_code,
+            "client_secret": CLIENT_SECRET,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            "scope": "r_usr w_usr",
+        }
+
+        status_code = 400
+        print("Checking link", end="")
+
+        while status_code == 400:
+            last_index = 1
+            for index, char in enumerate("." * 5, start=1):
+                sys.stdout.write(char)
+                sys.stdout.flush()
+                # exchange access code for oauth token
+                time.sleep(0.2)
+                last_index = index
+            token_response = requests.post(f"{AUTH_ENDPOINT}/oauth2/token", data=data)
+            status_code = token_response.status_code
+
+            # backtrack the written characters, overwrite them with space,
+            # backtrack again:
+            sys.stdout.write("\b" * last_index + " " * last_index + "\b" * last_index)
+            sys.stdout.flush()
+
+        print("." * 5)
+
+        try:
+            token_response.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            raise TidalAuthError(
+                "Auth Error: " + token_response.json().get("error")
+            ) from error
+
+        print("Successfully linked!")
+
+        token_json = token_response.json()
+
+        self.access_token = token_json["access_token"]
+        self.refresh_token = token_json["refresh_token"]
+        self.expires = datetime.datetime.now() + datetime.timedelta(
+            seconds=token_json["expires_in"]
+        )
+
+        sessions_response = requests.get(
+            "https://api.tidal.com/v1/sessions",
+            headers=self._auth_headers(),
+        )
+        sessions_response.raise_for_status()
+        sessions_json = sessions_response.json()
+        self.user_id = sessions_json["userId"]
+        self.country_code = sessions_json["countryCode"]
+
+        self.check_valid()
+
+    def _refresh(self) -> None:
+        if self.refresh_token is None:
+            raise TidalAuthError("Refresh token is missing.")
+        refresh_response = requests.post(
+            f"{AUTH_ENDPOINT}/oauth2/token",
+            data={
+                "refresh_token": self.refresh_token,
+                "client_id": CLIENT_ID,
+                "grant_type": "refresh_token",
+            },
+        )
+        try:
+            refresh_response.raise_for_status()
+        except requests.response.HTTPError as error:
+            raise TidalAuthError("Error refreshing token!") from error
+        refresh_json = refresh_response.json()
+
+        self.access_token = refresh_json["access_token"]
+        self.expires = datetime.datetime.now() + datetime.timedelta(
+            seconds=refresh_json["expires_in"]
+        )
+
+    def _auth_headers(self) -> Dict[str, str]:
+        return {
+            "Host": "api.tidal.com",
+            "X-Tidal-Token": CLIENT_ID,
+            "Authorization": f"Bearer {self.access_token}",
+            "Connection": "Keep-Alive",
+            "Accept-Encoding": "gzip",
+            "User-Agent": "TIDAL_ANDROID/1000 okhttp/3.13.1",
+        }
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        params: Optional[dict] = None,
+        data: Optional[dict] = None,
+        attempt: int = 1,
+    ) -> requests.models.Response:
+        """Make a request to TIDAL API"""
+
+        assert self.country_code is not None
+
+        full_params = {**(params or {}), "countryCode": self.country_code}
+        url = f"{API_ENDPOINT}/{path}"
+
+        try:
+            response = self._session.request(
+                method, url, params=full_params, data=data, headers=self._auth_headers()
+            )
+            # response = self._session.request(
+            #     method,
+            #     url,
+            #     params=params,
+            #     data=data,
+            #     headers=self._auth_headers(),
+            #     proxies={"https": "https://localhost:8000"},
+            #     verify="mitmproxy-ca-cert.pem",
+            # )
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            status = error.response.status_code
+            if (
+                status == 429
+                or (status == 500 and error.response.json().get("subStatus") == 999)
+            ) and attempt < MAXIMUM_ATTEMPTS:
+                # backoff and retry if we receive a 429 Client Error: Too Many Requests for url
+                time.sleep(2 ** attempt)
+                return self.request(
+                    method,
+                    path,
+                    params,
+                    data,
+                    attempt=attempt + 1,
+                )
+            if status in (401, 403):
+                # refresh session and retry
+                self._refresh()
+                return self.request(
+                    method, path, params, data, attempt=MAXIMUM_ATTEMPTS
+                )
+            raise error
+
+        return response
 
 
 class TidalClient(Client):
-    def __init__(self, config: dict) -> None:
+    """TIDAL API Client"""
+
+    def __init__(self, config: dict, tidal_session: TidalSession):
+        self._tidal_session = tidal_session
         self._search_count = config["search-count"]
         self._quality = config["quality"]
-
-        self._username = config["username"] or input("Tidal username: ")
-        self._password = config["password"] or getpass.getpass("Tidal password: ")
-
-    def authenticate(self):
-        self._session, self._country_code = TidalClient._get_session(
-            self._username, self._password, API_TOKEN
-        )
-        # self._master_session, _ = TidalClient._get_session(
-        #     self._username, self._password, MASTER_API_TOKEN
-        # )
 
     def resolve_url(self, url: str) -> Tuple[MediaType, Optional[Media]]:
         parsed = urlparse(url)
@@ -90,78 +309,8 @@ class TidalClient(Client):
         return media_type, handlers[media_type](media_id)
 
     @staticmethod
-    def _get_session(
-        username: str, password: str, token: str
-    ) -> Tuple[requests.Session, str]:
-        session = requests.Session()
-        session.headers["User-Agent"] = USER_AGENT
-
-        client_unique_key = "".join(
-            random.choice(ascii_lowercase) for _ in range(CLIENT_UNIQUE_KEY_LENGTH)
-        )
-
-        request = session.post(
-            f"{API_ENDPOINT}/login/username",
-            data=TidalClient._prepare_params(
-                {
-                    "username": username,
-                    "password": password,
-                    "token": token,
-                    "clientUniqueKey": client_unique_key,
-                    "clientVersion": CLIENT_VERSION,
-                }
-            ),
-        )
-        request.raise_for_status()
-        body = request.json()
-        session.headers["x-tidal-sessionid"] = body["sessionId"]
-        country_code = body["countryCode"]
-
-        return session, country_code
-
-    @staticmethod
-    def _prepare_params(params: dict) -> dict:
-        return {str.encode(key): str.encode(value) for key, value in params.items()}
-
-    @staticmethod
     def _get_cover_url(cover: str) -> str:
         return f"https://resources.tidal.com/images/{cover.replace('-', '/')}/{COVER_ART_SIZE}x{COVER_ART_SIZE}.jpg"
-
-    @staticmethod
-    def _decrypt_security_token(security_token: bytes) -> Tuple[bytes, bytes]:
-        # from https://github.com/yaronzz/Tidal-Media-Downloader/blob/master/TIDALDL-PY/tidal_dl/decryption.py, who took it from RedSea
-
-        # decode the base64 strings to ascii strings
-        master_key = base64.b64decode(MASTER_KEY)
-        security_token = base64.b64decode(security_token)
-
-        # get the IV from the first 16 bytes of the securityToken
-        iv = security_token[:16]
-        encrypted_st = security_token[16:]
-
-        # initialize decryptor
-        decryptor = AES.new(master_key, AES.MODE_CBC, iv)
-
-        # decrypt the security token
-        decrypted_st = decryptor.decrypt(encrypted_st)
-
-        # get the audio stream decryption key and nonce from the decrypted security token
-        key = decrypted_st[:16]
-        nonce = decrypted_st[16:24]
-
-        return key, nonce
-
-    @staticmethod
-    def _decrypt(key: bytes, nonce: bytes, path: str) -> None:
-        counter = Counter.new(64, prefix=nonce, initial_value=0)
-        decryptor = AES.new(key, AES.MODE_CTR, counter=counter)
-
-        with open(path, "rb") as encrypted_file:
-            decrypted = decryptor.decrypt(
-                encrypted_file.read()
-            )  # should probably do this in chunks
-        with open(path, "wb") as decrypted_file:
-            decrypted_file.write(decrypted)
 
     def _request(
         self,
@@ -169,47 +318,8 @@ class TidalClient(Client):
         path: str,
         params: Optional[dict] = None,
         data: Optional[dict] = None,
-        use_master_session: bool = False,
-        attempt: int = 1,
     ) -> requests.models.Response:
-
-        full_params = {**(params or {}), "countryCode": self._country_code}
-        url = f"{API_ENDPOINT}/{path}"
-
-        # session = self._master_session if use_master_session else self._session
-        session = self._session
-
-        try:
-            response = session.request(method, url, params=full_params, data=data)
-            # request = session.request(
-            #     method,
-            #     url,
-            #     params=params,
-            #     data=data,
-            #     proxies={"https": "https://localhost:8000"},
-            #     verify="mitmproxy-ca-cert.pem",
-            # )
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as error:
-            status = error.response.status_code
-            if (
-                status == 429
-                or (status == 500 and error.response.json().get("subStatus") == 999)
-            ) and attempt < MAXIMUM_ATTEMPTS:
-                # re-authenticate and retry if we receive a 429 Client Error: Too Many Requests for url
-                time.sleep(2 ** attempt)
-                self.authenticate()
-                return self._request(
-                    method,
-                    path,
-                    params,
-                    data,
-                    use_master_session=use_master_session,
-                    attempt=attempt + 1,
-                )
-            raise error
-
-        return response
+        return self._tidal_session.request(method, path, params, data)
 
     def _paginate(
         self,
@@ -217,7 +327,6 @@ class TidalClient(Client):
         path: str,
         params: Optional[dict] = None,
         data: Optional[dict] = None,
-        use_master_session: bool = False,
     ) -> List[Any]:
         items = []
         params = {
@@ -228,9 +337,7 @@ class TidalClient(Client):
             **(params or {}),
         }
         while True:
-            response = self._request(
-                method, path, params, data, use_master_session=use_master_session
-            ).json()
+            response = self._request(method, path, params, data).json()
             items += response["items"]
             if len(items) >= response["totalNumberOfItems"]:
                 break
@@ -337,7 +444,10 @@ class TidalClient(Client):
         )
 
     def search(
-        self, query: str, media_type: Type[Union[Track, Album, Artist]], count: int,
+        self,
+        query: str,
+        media_type: Type[Union[Track, Album, Artist]],
+        count: int,
     ) -> List[Union[Track, Album, Artist]]:
         types, key, resolver = {
             Track: ("TRACKS", "tracks", self._tidal_track_to_track),
@@ -363,10 +473,8 @@ class TidalClient(Client):
             "low": "LOW",
         }[track.chosen_quality]
 
-        decryptor: Optional[Callable[[str], None]]
-
         try:
-            response = self._request(
+            playback_response = self._request(
                 "GET",
                 f"tracks/{track.id}/playbackinfopostpaywall",
                 params={
@@ -374,38 +482,20 @@ class TidalClient(Client):
                     "playbackmode": "STREAM",
                     "assetpresentation": "FULL",
                 },
-            ).json()
+            )
 
-            # MQA files don't seem to be encrypted if we get the URLs this way
-            manifest = json.loads(base64.b64decode(response["manifest"]))
-            url = manifest["urls"][0]
+            playback_response.raise_for_status()
 
-            decryptor = None
-
-            # response = self._request(
-            #     "GET",
-            #     f"tracks/{track.id}/streamUrl",
-            #     params={"soundQuality": tidal_quality,},
-            #     use_master_session=False
-            # ).json()
-
-            # url = response["url"]
-            # if response.get("encryptionKey"):
-            #     key, nonce = TidalClient._decrypt_security_token(
-            #         response["encryptionKey"]
-            #     )
-            #     decryptor = partial(TidalClient._decrypt, key, nonce)
-            # else:
-            #     decryptor = None
+            manifest = json.loads(
+                base64.b64decode(playback_response.json()["manifest"])
+            )
+            return manifest["urls"][0]
         except requests.exceptions.HTTPError as error:
             status_code = error.response.status_code
             sub_status = error.response.json().get("subStatus")
             if (status_code, sub_status) == (401, 4005):
-                raise UnavailableException()
-            else:
-                raise error
-
-        return url, decryptor
+                raise UnavailableException() from error
+            raise error
 
     def get_track_by_id(self, track_id: str) -> Optional[Track]:
         try:
@@ -436,8 +526,10 @@ class TidalClient(Client):
             element["item"]
             for element in self._paginate(
                 "GET",
-                f"pages/data/2fbf68c2-dc58-49b1-b1be-6958e66383f3",
-                params={"albumId": album.id,},
+                "pages/data/2fbf68c2-dc58-49b1-b1be-6958e66383f3",
+                params={
+                    "albumId": album.id,
+                },
             )
             if element["type"] == "track"
         ]
@@ -450,6 +542,8 @@ class TidalClient(Client):
         tidal_albums = self._paginate(
             "GET",
             "pages/data/4b37c74b-f994-45dd-8fca-b7da2694da83",
-            params={"artistId": artist.id,},
+            params={
+                "artistId": artist.id,
+            },
         )
         return [self._tidal_album_to_album(tidal_album) for tidal_album in tidal_albums]

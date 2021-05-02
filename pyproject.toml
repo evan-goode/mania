@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "mania"
+version = "4.2.1"
+description = "A command-line tool for downloading music from TIDAL"
+authors = ["Evan Goode <mail@evangoo.de>"]
+license = "The Unlicense"
+
+[tool.poetry.scripts]
+mania = "mania.mania:main"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.10"
+pycryptodome = "^3.10.1"
+mutagen = "^1.45.1"
+questionary = "^1.9.0"
+requests = "^2.25.1"
+tqdm = "^4.60.0"
+toml = "^0.10.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

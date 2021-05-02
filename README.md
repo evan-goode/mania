@@ -32,8 +32,6 @@ Optional flags can go anywhere in the command. For example, to automatically sel
 mania track the great gig in the sky --lucky
 ```
 
-You can store your TIDAL credentials in the config file so you don't have to enter them every time, see below.
-
 ## Configuration
 
 Every option (except `--config-file`) can be specified either as a command-line argument or using a TOML configuration file. On the command line, prefix the option with `--`, or `--no-`, as in `--output-directory ~/music` or `--no-full-structure`.
@@ -42,8 +40,6 @@ The first time it's run, Mania populates `~/.config/mania/config.toml` with some
 
 To point Mania to a different configuration file, use `--config-file <file>`.
 
-- `username <username>`: your TIDAL username. If this is not specified, Mania will ask at runtime. Default value is empty.
-- `password <password>`: your TIDAL password. Again, if this is not specified, Mania will ask. Default value is empty.
 - `quality <quality>`: default value is `lossless`. Possible values are `master` (MQA in a FLAC container, usually 96 kHz, 24 bit), `lossless` (44.1 kHz, 16 bit FLAC), `high` (~320 kbps VBR AAC), and `low` (~96 kbps VBR AAC). If the content you request isn't available in the specified quality, Mania will try to download the "next best" option (`master` > `lossless` > `high` > `low`). Note that `master` and `lossless` requires a TIDAL HiFi subscription.
 - `output-directory <path>`: where to put downloaded music. Default value is `.` (your working directory when you run Mania).
 - `by-id`: find something using its ID instead of searching TIDAL. For example, `mania album --by-id 79419393`.
@@ -61,5 +57,5 @@ To point Mania to a different configuration file, use `--config-file <file>`.
 ## See also
 
 - [tidalapi](https://github.com/tamland/python-tidal)
-- [RedSea](https://github.com/Azalius/RedSea)
+- [RedSea](https://github.com/Dniel97/RedSea)
 - [Tidal-Media-Downloader](https://github.com/yaronzz/Tidal-Media-Downloader/)

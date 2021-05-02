@@ -1,7 +1,10 @@
+"""Main logic"""
+
 import argparse
 import os
 import sys
-from typing import cast, Callable, List, Optional, Type
+from typing import cast, List, Optional
+import traceback
 
 import questionary
 import requests
@@ -21,15 +24,18 @@ from .models import (
     MediaType,
 )
 from . import metadata
-from .tidal import TidalClient
+from .tidal import TidalAuthError, TidalSession, TidalClient
 
 
 def log(config: dict, message: str = "", indent: int = 0) -> None:
+    """Log a message to stdout unless config["quiet"] is set. Optionally indent
+    by `indent` levels"""
     if message is not None and not config["quiet"]:
         print(constants.INDENT * indent + str(message))
 
 
 def sanitize(config: dict, string: str, length_padding: int = 0) -> str:
+    """Sanitize a string for use as a filesystem path"""
     if config["nice-format"]:
         alphanumeric = "".join(c for c in string if c.isalnum() or c in (" ", "-"))
         hyphenated = alphanumeric.replace(" ", "-")
@@ -42,7 +48,7 @@ def sanitize(config: dict, string: str, length_padding: int = 0) -> str:
     max_length = os.statvfs(config["output-directory"]).f_namemax
 
     # truncate unicode string to a byte count
-    encoded = sanitized.encode("utf-8")[:max_length - length_padding]
+    encoded = sanitized.encode("utf-8")[: max_length - length_padding]
     return encoded.decode("utf-8", "ignore")
 
 
@@ -59,9 +65,11 @@ def search(
             Artist: client.get_artist_by_id,
         }[media_type](query)
         if result is None:
-            media_type_name = {Track: "track", Album: "album", Artist: "artist",}[
-                media_type
-            ]
+            media_type_name = {
+                Track: "track",
+                Album: "album",
+                Artist: "artist",
+            }[media_type]
             raise ManiaSeriousException(
                 f"Couldn't find the {media_type_name} with ID {query}."
             )
@@ -111,13 +119,14 @@ def search(
         label += f"\n{indent}{artists}"
         return label
 
-
     def label_artist(artist: Artist) -> str:
         return artist.name
 
-    labeler = {Track: label_track, Album: label_album, Artist: label_artist,}[
-        media_type
-    ]
+    labeler = {
+        Track: label_track,
+        Album: label_album,
+        Artist: label_artist,
+    }[media_type]
 
     choices = [questionary.Choice(labeler(result), value=result) for result in results]
     answer = questionary.select("Select one:", choices=choices).ask()
@@ -127,6 +136,7 @@ def search(
 
 
 def resolve_metadata(config: dict, track: Track, path: str, indent: int) -> None:
+    """Embed tags and cover art from `track` to the file at `path`"""
     log(config, "Resolving metadata...", indent=indent)
 
     cover: Optional[metadata.Cover]
@@ -173,7 +183,9 @@ def get_track_path(
         track_number = str(track.track_number).zfill(len(str(maximum_track_number)))
         file_path = sanitize(config, f"{track_number} {track.name}", length_padding=len(temporary_extension))
     else:
-        file_path = sanitize(config, track.name, length_padding=len(temporary_extension))
+        file_path = sanitize(
+            config, track.name, length_padding=len(temporary_extension)
+        )
 
     return os.path.join(
         config["output-directory"], artist_path, album_path, disc_path, file_path
@@ -197,7 +209,9 @@ def download_track(
         include_artist=include_artist,
         include_album=include_album,
     )
-    temporary_path = f"{track_path}.{constants.TEMPORARY_EXTENSION}.{track.file_extension}"
+    temporary_path = (
+        f"{track_path}.{constants.TEMPORARY_EXTENSION}.{track.file_extension}"
+    )
     final_path = f"{track_path}.{track.file_extension}"
     if os.path.isfile(final_path):
         log(
@@ -207,7 +221,7 @@ def download_track(
         )
         return
     try:
-        media_url, decryptor = client.get_media(track)
+        media_url = client.get_media(track)
     except UnavailableException:
         log(
             config,
@@ -237,10 +251,6 @@ def download_track(
                 for chunk in iterator:
                     temp_file.write(chunk)
                     progress_bar.update(chunk_size)
-
-    if decryptor:
-        log(config, "Decrypting...", indent=indent)
-        decryptor(temporary_path)
 
     if not config["skip-metadata"]:
         try:
@@ -355,6 +365,7 @@ def load_config(args: dict) -> dict:
         for key, default in constants.DEFAULT_CONFIG_TOML.items()
     }
     config["output-directory"] = os.path.expanduser(config["output-directory"])
+    os.makedirs(config["output-directory"], exist_ok=True)
     config["config-path"] = config_path
     return config
 
@@ -392,30 +403,44 @@ def run() -> None:
 
     config = load_config(args)
 
-    client = TidalClient(config)
-    
-    log(config, "Warning: MQA support is currently broken. Files requested as `master` quality will download as `lossless`.")
+    if "username" in config or "password" in config:
+        config_path = config["config-path"]
+        log(
+            config,
+            f"Note: due to changes on TIDAL's end, login is now done by mimicking an Android TV, and directly specifying a username and password is no longer supported. You can remove them from your configuration file ({config_path}).",
+        )
 
-    log(config, "Authenticating...")
     try:
-        client.authenticate()
-    except requests.exceptions.HTTPError as error:
-        if error.response.status_code in (400, 401):
-            data = error.response.json()
-            message = data["userMessage"]
-            print(data)
-            raise ManiaSeriousException(f"Authentication failed: {message}")
-        raise error
+        with open(constants.SESSION_PATH, "r") as session_file:
+            session_dict = toml.load(session_file)
+        session = TidalSession(**session_dict)
+        session.check_valid()
+        log(config, "Loaded cached TIDAL session.")
+    except (FileNotFoundError, toml.TomlDecodeError, TidalAuthError):
+        log(config, "No valid cached session, creating a new one...")
+        session = TidalSession()
+        session.authenticate()
 
-    handlers[args["command"]](client, config, " ".join(args["query"]))
+    client = TidalClient(config, session)
+
+    try:
+        handlers[args["command"]](client, config, " ".join(args["query"]))
+    finally:
+        log(config, "Saving TIDAL session for future use...")
+        os.makedirs(os.path.dirname(constants.SESSION_PATH), exist_ok=True)
+        with open(constants.SESSION_PATH, "w") as session_file:
+            toml.dump(session.to_dict(), session_file)
+
     log(config, "Done!")
 
 
 def main() -> None:
+    """Handle exit codes and SIGINT"""
     try:
         run()
-    except requests.exceptions.HTTPError as error:
-        print(f"Uncaught HTTP Error:\n{error.response.content}", file=sys.stderr)
+    except requests.exceptions.HTTPError:
+        print("Uncaught HTTP Error:")
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
     except ManiaException as exception:
         if str(exception):
