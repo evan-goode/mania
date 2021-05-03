@@ -183,8 +183,12 @@ def get_track_path(
         track_number = str(track.track_number).zfill(len(str(maximum_track_number)))
         file_path = sanitize(config, f"{track_number} {track.name}", length_padding=len(temporary_extension))
     else:
+        artists_str = ", ".join(artist.name for artist in track.artists)
+        song_name = f"{track.name} - {artists_str}"
+        if track.album.year:
+            song_name += f" ({track.album.year})"
         file_path = sanitize(
-            config, track.name, length_padding=len(temporary_extension)
+            config, song_name, length_padding=len(temporary_extension)
         )
 
     return os.path.join(
