@@ -53,10 +53,10 @@ def sanitize(config: dict, string: str, length_padding: int = 0) -> str:
 
 
 def search(
-    client: Client,
-    config: dict,
-    media_type: MediaType,
-    query: str,
+        client: Client,
+        config: dict,
+        media_type: MediaType,
+        query: str,
 ) -> Media:
     if config["by-id"]:
         result = {
@@ -155,12 +155,12 @@ def resolve_metadata(config: dict, track: Track, path: str, indent: int) -> None
 
 
 def get_track_path(
-    client: Client,
-    config: dict,
-    track: Track,
-    siblings: List[Track] = None,
-    include_artist: bool = False,
-    include_album: bool = False,
+        client: Client,
+        config: dict,
+        track: Track,
+        siblings: List[Track] = None,
+        include_artist: bool = False,
+        include_album: bool = False,
 ) -> str:
     artist_path = ""
     album_path = ""
@@ -193,13 +193,13 @@ def get_track_path(
 
 
 def download_track(
-    client: Client,
-    config: dict,
-    track: Track,
-    siblings: List[Track] = None,
-    include_artist: bool = False,
-    include_album: bool = False,
-    indent: int = 0,
+        client: Client,
+        config: dict,
+        track: Track,
+        siblings: List[Track] = None,
+        include_artist: bool = False,
+        include_album: bool = False,
+        indent: int = 0,
 ) -> None:
     track_path = get_track_path(
         client,
@@ -241,12 +241,12 @@ def download_track(
         else:
             total = int(request.headers["Content-Length"])
             with tqdm(
-                total=total,
-                miniters=1,
-                unit="B",
-                unit_divisor=1024,
-                unit_scale=True,
-                dynamic_ncols=True,
+                    total=total,
+                    miniters=1,
+                    unit="B",
+                    unit_divisor=1024,
+                    unit_scale=True,
+                    dynamic_ncols=True,
             ) as progress_bar:
                 for chunk in iterator:
                     temp_file.write(chunk)
@@ -273,11 +273,11 @@ def handle_track(client: Client, config: dict, query: str) -> None:
 
 
 def download_album(
-    client: Client,
-    config: dict,
-    album: Album,
-    include_artist: bool = False,
-    indent: int = 0,
+        client: Client,
+        config: dict,
+        album: Album,
+        include_artist: bool = False,
+        indent: int = 0,
 ) -> None:
     tracks = client.get_album_tracks(album)
     for index, track in enumerate(tracks, 1):
@@ -304,7 +304,7 @@ def handle_album(client: Client, config: dict, query: str) -> None:
 
 
 def download_artist(
-    client: Client, config: dict, artist: Artist, indent: int = 0
+        client: Client, config: dict, artist: Artist, indent: int = 0
 ) -> None:
     albums = client.get_artist_albums(artist)
     for index, album in enumerate(albums, 1):
@@ -409,7 +409,6 @@ def run() -> None:
             config,
             f"Note: due to changes on TIDAL's end, login is now done by mimicking an Android TV, and directly specifying a username and password is no longer supported. You can remove them from your configuration file ({config_path}).",
         )
-
     try:
         with open(constants.SESSION_PATH, "r") as session_file:
             session_dict = toml.load(session_file)
@@ -419,6 +418,7 @@ def run() -> None:
     except (FileNotFoundError, toml.TomlDecodeError, TidalAuthError):
         log(config, "No valid cached session, creating a new one...")
         session = TidalSession()
+        session.get_authorization()
         session.authenticate()
 
     client = TidalClient(config, session)
