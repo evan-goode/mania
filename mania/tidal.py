@@ -84,7 +84,7 @@ class TidalSession:
         )
         try:
             subscription_response.raise_for_status()
-            assert subscription_response.json()["subscription"]["type"] == "HIFI"
+            # assert subscription_response.json()["subscription"]["type"] == "HIFI"
         except requests.exceptions.HTTPError as error:
             raise TidalAuthError("Session is invalid.") from error
         except AssertionError as error:
