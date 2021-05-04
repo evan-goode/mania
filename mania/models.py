@@ -75,7 +75,7 @@ class Client(ABC):
         pass
 
     @abstractmethod
-    def get_media(self, track: Track) -> Tuple[str, Optional[Callable[[str], None]]]:
+    def get_media(self, track: Track) -> str:
         pass
 
     @abstractmethod

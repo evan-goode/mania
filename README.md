@@ -12,7 +12,16 @@ Mania requires Python 3.6 or higher and has been tested on GNU/Linux and macOS.
 
 ## Usage
 
-Download a track, an album, or even an artist's entire discography:
+Instead of asking for your username and password, Mania now uses TIDAL's TV login process. The first time you run it, it will ask you to link a TIDAL account:
+
+```
+No valid cached session, creating a new one...
+Go to https://link.tidal.com/XXXXX and log in or sign up to TIDAL.
+```
+
+Simply follow the link and log in.
+
+To download a track, an album, or even an artist's entire discography:
 
 ```
 mania track the great gig in the sky
@@ -34,11 +43,13 @@ mania track the great gig in the sky --lucky
 
 ## Configuration
 
-Every option (except `--config-file`) can be specified either as a command-line argument or using a TOML configuration file. On the command line, prefix the option with `--`, or `--no-`, as in `--output-directory ~/music` or `--no-full-structure`.
+Each option (except `--config-file`) can be specified either as a command-line argument or using the TOML config file at `~/.config/mania/config.toml`. On the command line, prefix the option with `--`, or `--no-`, as in `--output-directory ~/music` or `--no-full-structure`.
 
 The first time it's run, Mania populates `~/.config/mania/config.toml` with some default values. For more information on the TOML format, see https://github.com/toml-lang/toml.
 
 To point Mania to a different configuration file, use `--config-file <file>`.
+
+Available options are:
 
 - `quality <quality>`: default value is `lossless`. Possible values are `master` (MQA in a FLAC container, usually 96 kHz, 24 bit), `lossless` (44.1 kHz, 16 bit FLAC), `high` (~320 kbps VBR AAC), and `low` (~96 kbps VBR AAC). If the content you request isn't available in the specified quality, Mania will try to download the "next best" option (`master` > `lossless` > `high` > `low`). Note that `master` and `lossless` requires a TIDAL HiFi subscription.
 - `output-directory <path>`: where to put downloaded music. Default value is `.` (your working directory when you run Mania).

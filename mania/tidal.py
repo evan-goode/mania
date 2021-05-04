@@ -229,10 +229,10 @@ class TidalSession:
             # response = self._session.request(
             #     method,
             #     url,
-            #     params=params,
+            #     params=full_params,
             #     data=data,
             #     headers=self._auth_headers(),
-            #     proxies={"https": "https://localhost:8000"},
+            #     proxies={"https": "http://localhost:8000"},
             #     verify="mitmproxy-ca-cert.pem",
             # )
             response.raise_for_status()
@@ -464,7 +464,7 @@ class TidalClient(Client):
         ).json()[key]["items"]
         return [resolver(result) for result in results]
 
-    def get_media(self, track: Track) -> Tuple[str, Optional[Callable[[str], None]]]:
+    def get_media(self, track: Track) -> str:
         tidal_quality = {
             "master": "HI_RES",
             "lossless": "LOSSLESS",
