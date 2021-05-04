@@ -229,7 +229,7 @@ def download_track(
     except UnavailableException:
         log(
             config,
-            f"Skipping download of {os.path.basename(final_path)}; track is not available.",
+            f"Skipping download of {os.path.basename(final_path)}; track is not available. Perhaps it's region-locked?",
             indent=indent,
         )
         return

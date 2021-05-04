@@ -13,7 +13,16 @@ import time
 
 import requests
 
-from .models import Track, Album, Artist, Media, MediaType, Client, UnavailableException
+from .models import (
+    Track,
+    Album,
+    Artist,
+    Media,
+    MediaType,
+    Client,
+    ManiaSeriousException,
+    UnavailableException,
+)
 
 LOCALE = locale.getlocale()[0]
 
@@ -484,10 +493,14 @@ class TidalClient(Client):
             )
 
             playback_response.raise_for_status()
+            playback_json = playback_response.json()
 
-            manifest = json.loads(
-                base64.b64decode(playback_response.json()["manifest"])
-            )
+            if playback_json["audioQuality"] != tidal_quality:
+                raise ManiaSeriousException(
+                    "Track is unavailable in the requested quality. Did you try to download a lossless file without a TIDAL HiFi subscription?"
+                )
+
+            manifest = json.loads(base64.b64decode(playback_json["manifest"]))
             return manifest["urls"][0]
         except requests.exceptions.HTTPError as error:
             status_code = error.response.status_code
