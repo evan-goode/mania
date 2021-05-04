@@ -11,7 +11,6 @@ import locale
 import re
 import sys
 import time
-import threading
 
 import requests
 
