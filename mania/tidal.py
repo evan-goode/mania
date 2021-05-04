@@ -1,4 +1,3 @@
-
 """Tidal authentication and API client"""
 
 from operator import itemgetter
@@ -43,14 +42,14 @@ class TidalSession:
     Daniel!"""
 
     def __init__(
-            self,
-            device_code: Optional[str] = None,
-            user_code: Optional[str] = None,
-            country_code: Optional[str] = None,
-            access_token: Optional[str] = None,
-            refresh_token: Optional[str] = None,
-            user_id: Optional[str] = None,
-            expires: Optional[datetime.datetime] = None,
+        self,
+        device_code: Optional[str] = None,
+        user_code: Optional[str] = None,
+        country_code: Optional[str] = None,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        user_id: Optional[str] = None,
+        expires: Optional[datetime.datetime] = None,
     ):
         self.device_code = device_code
         self.user_code = user_code
@@ -209,12 +208,12 @@ class TidalSession:
         }
 
     def request(
-            self,
-            method: str,
-            path: str,
-            params: Optional[dict] = None,
-            data: Optional[dict] = None,
-            attempt: int = 1,
+        self,
+        method: str,
+        path: str,
+        params: Optional[dict] = None,
+        data: Optional[dict] = None,
+        attempt: int = 1,
     ) -> requests.models.Response:
         """Make a request to TIDAL API"""
 
@@ -240,8 +239,8 @@ class TidalSession:
         except requests.exceptions.HTTPError as error:
             status = error.response.status_code
             if (
-                    status == 429
-                    or (status == 500 and error.response.json().get("subStatus") == 999)
+                status == 429
+                or (status == 500 and error.response.json().get("subStatus") == 999)
             ) and attempt < MAXIMUM_ATTEMPTS:
                 # backoff and retry if we receive a 429 Client Error: Too Many Requests for url
                 time.sleep(2 ** attempt)
@@ -313,20 +312,20 @@ class TidalClient(Client):
         return f"https://resources.tidal.com/images/{cover.replace('-', '/')}/{COVER_ART_SIZE}x{COVER_ART_SIZE}.jpg"
 
     def _request(
-            self,
-            method: str,
-            path: str,
-            params: Optional[dict] = None,
-            data: Optional[dict] = None,
+        self,
+        method: str,
+        path: str,
+        params: Optional[dict] = None,
+        data: Optional[dict] = None,
     ) -> requests.models.Response:
         return self._tidal_session.request(method, path, params, data)
 
     def _paginate(
-            self,
-            method: str,
-            path: str,
-            params: Optional[dict] = None,
-            data: Optional[dict] = None,
+        self,
+        method: str,
+        path: str,
+        params: Optional[dict] = None,
+        data: Optional[dict] = None,
     ) -> List[Any]:
         items = []
         params = {
@@ -348,7 +347,7 @@ class TidalClient(Client):
         quality_levels = {"low": 1, "high": 2, "lossless": 3, "master": 4}
 
         special_audio_modes = (
-                frozenset(tidal_object.get("audioModes", ())) & SPECIAL_AUDIO_MODES
+            frozenset(tidal_object.get("audioModes", ())) & SPECIAL_AUDIO_MODES
         )
 
         if tidal_object["audioQuality"] == "LOSSLESS" or special_audio_modes:
@@ -411,7 +410,7 @@ class TidalClient(Client):
         )
 
     def _tidal_track_to_track(
-            self, tidal_track: dict, album: Optional[Album] = None
+        self, tidal_track: dict, album: Optional[Album] = None
     ) -> Track:
         # we can be pretty sure that an album ID is valid if it comes from TIDAL
         album = album or cast(Album, self.get_album_by_id(tidal_track["album"]["id"]))
@@ -444,10 +443,10 @@ class TidalClient(Client):
         )
 
     def search(
-            self,
-            query: str,
-            media_type: Type[Union[Track, Album, Artist]],
-            count: int,
+        self,
+        query: str,
+        media_type: Type[Union[Track, Album, Artist]],
+        count: int,
     ) -> List[Union[Track, Album, Artist]]:
         types, key, resolver = {
             Track: ("TRACKS", "tracks", self._tidal_track_to_track),

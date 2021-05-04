@@ -7,11 +7,13 @@ from typing import Callable, List, NamedTuple, Optional, Tuple, Type, Union
 
 class ManiaException(Exception):
     """Base exception class for setting an exit code"""
+
     exit_code = 0
 
 
 class ManiaSeriousException(ManiaException):
     """A serious exception with a non-zero exit code"""
+
     exit_code = 1
 
 
@@ -21,12 +23,14 @@ class UnavailableException(Exception):
 
 class Artist(NamedTuple):
     """A musical artist"""
+
     id: str
     name: str
 
 
 class Album(NamedTuple):
     """An album with one or more artists"""
+
     id: str
     name: str
     artists: List[Artist]
@@ -38,6 +42,7 @@ class Album(NamedTuple):
 
 class Track(NamedTuple):
     """A track with an album and one or more artists"""
+
     id: str
     name: str
     artists: List[Artist]
@@ -56,6 +61,7 @@ MediaType = Union[Type[Track], Type[Album], Type[Artist]]
 
 class Client(ABC):
     """An abstract streaming service client"""
+
     @abstractmethod
     def search(self, query: str, media_type: MediaType, count: int):
         pass
