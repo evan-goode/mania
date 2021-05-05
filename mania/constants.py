@@ -25,5 +25,7 @@ quiet = false
 nice-format = false
 full-structure = false
 skip-metadata = false
+replay-gain = true
+include-eps-singles = false
 """
 DEFAULT_CONFIG_TOML = toml.loads(DEFAULT_CONFIG)

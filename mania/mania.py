@@ -311,6 +311,9 @@ def download_artist(
     client: Client, config: dict, artist: Artist, indent: int = 0
 ) -> None:
     albums = client.get_artist_albums(artist)
+    if config["include-eps-singles"]:
+        eps_singles = client.get_artist_eps_singles(artist)
+        albums = [*albums, *eps_singles]
     for index, album in enumerate(albums, 1):
         log(
             config,

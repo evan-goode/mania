@@ -448,6 +448,7 @@ class TidalClient(Client):
             disc_number=tidal_track["volumeNumber"],
             chosen_quality=chosen_quality,
             best_available_quality=best_available_quality,
+            replay_gain=tidal_track.get("replayGain"),
             file_extension=file_extension,
         )
 
@@ -559,3 +560,15 @@ class TidalClient(Client):
             },
         )
         return [self._tidal_album_to_album(tidal_album) for tidal_album in tidal_albums]
+
+    def get_artist_eps_singles(self, artist: Artist) -> List[Album]:
+        tidal_eps_singles = self._paginate(
+            "GET",
+            "pages/data/bb502cc2-58f7-4bd1-870a-265658fa36af",
+            params={
+                "artistId": artist.id,
+            },
+        )
+        return [
+            self._tidal_album_to_album(tidal_album) for tidal_album in tidal_eps_singles
+        ]

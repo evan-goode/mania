@@ -2,7 +2,7 @@
 since TIDAL is now the only supported back-end."""
 
 from abc import ABC, abstractmethod
-from typing import Callable, List, NamedTuple, Optional, Tuple, Type, Union
+from typing import List, NamedTuple, Optional, Tuple, Type, Union
 
 
 class ManiaException(Exception):
@@ -52,6 +52,7 @@ class Track(NamedTuple):
     disc_number: int
     chosen_quality: str
     best_available_quality: str
+    replay_gain: Optional[float]
     file_extension: str
 
 
@@ -72,6 +73,10 @@ class Client(ABC):
 
     @abstractmethod
     def get_artist_albums(self, artist: Artist) -> List[Album]:
+        pass
+
+    @abstractmethod
+    def get_artist_eps_singles(self, artist: Artist) -> List[Album]:
         pass
 
     @abstractmethod

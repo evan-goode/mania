@@ -47,6 +47,8 @@ def resolve_flac_metadata(
     tagger["albumartist"] = [artist.name for artist in track.album.artists]
     tagger["tracknumber"] = str(track.track_number)
     tagger["discnumber"] = str(track.disc_number)
+    if config["replay-gain"] and track.replay_gain is not None:
+        tagger["replaygain"] = str(track.replay_gain)
     if cover:
         flac_picture = FLACPicture()
         flac_picture.type = 3
