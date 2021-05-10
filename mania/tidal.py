@@ -197,7 +197,7 @@ class TidalSession:
         )
         try:
             refresh_response.raise_for_status()
-        except requests.response.HTTPError as error:
+        except requests.exceptions.HTTPError as error:
             raise TidalAuthError("Error refreshing token!") from error
         refresh_json = refresh_response.json()
 
@@ -513,7 +513,7 @@ class TidalClient(Client):
     def get_track_by_id(self, track_id: str) -> Optional[Track]:
         try:
             tidal_track = self._request("GET", f"tracks/{track_id}").json()
-        except requests.HTTPError as error:
+        except requests.exceptions.HTTPError as error:
             if error.response.status_code == 404:
                 return None
         return self._tidal_track_to_track(tidal_track)
@@ -521,7 +521,7 @@ class TidalClient(Client):
     def get_album_by_id(self, album_id: str) -> Optional[Album]:
         try:
             tidal_album = self._request("GET", f"albums/{album_id}").json()
-        except requests.HTTPError as error:
+        except requests.exceptions.HTTPError as error:
             if error.response.status_code == 404:
                 return None
         return self._tidal_album_to_album(tidal_album)
@@ -529,7 +529,7 @@ class TidalClient(Client):
     def get_artist_by_id(self, artist_id: str) -> Optional[Artist]:
         try:
             tidal_artist = self._request("GET", f"artists/{artist_id}").json()
-        except requests.HTTPError as error:
+        except requests.exceptions.HTTPError as error:
             if error.response.status_code == 404:
                 return None
         return self._tidal_artist_to_artist(tidal_artist)
