@@ -27,5 +27,11 @@ full-structure = false
 skip-metadata = false
 replay-gain = true
 include-eps-singles = false
+
+track-format = "{track_number}"
+individual-track-format = "{track_name}"
+
+album-format = "{album_name}"
+individual-album-format = "{album_name}"
 """
 DEFAULT_CONFIG_TOML = toml.loads(DEFAULT_CONFIG)

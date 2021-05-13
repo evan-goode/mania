@@ -165,34 +165,37 @@ def get_track_path(
     artist_path = ""
     album_path = ""
     disc_path = ""
-    file_path = ""
+    track_path = ""
 
     temporary_extension = f".{constants.TEMPORARY_EXTENSION}.{track.file_extension}"
 
     if include_artist or config["full-structure"]:
         artist_path = sanitize(config, track.album.artists[0].name)
+        album_format_string = config["album-format"]
+    else:
+        album_format_string = config["individual-album-format"]
 
+    siblings = siblings or client.get_album_tracks(track.album)
+    maximum_disc_number = max(sibling.disc_number for sibling in siblings)
+    maximum_track_number = max(sibling.track_number for sibling in siblings)
     if include_album or config["full-structure"]:
-        siblings = siblings or client.get_album_tracks(track.album)
-        maximum_disc_number = max(sibling.disc_number for sibling in siblings)
-        maximum_track_number = max(sibling.track_number for sibling in siblings)
-        album_path = sanitize(config, track.album.name)
         if maximum_disc_number > 1:
             disc_number = str(track.disc_number).zfill(len(str(maximum_disc_number)))
             disc_path = sanitize(config, f"Disc {disc_number}")
-        track_number = str(track.track_number).zfill(len(str(maximum_track_number)))
-        file_path = sanitize(
-            config,
-            f"{track_number} {track.name}",
-            length_padding=len(temporary_extension),
-        )
+        album_formatted = album_format_string.format(**track.album.format_dict())
+        album_path = sanitize(config, album_formatted)
+        track_format_string = config["track-format"]
     else:
-        file_path = sanitize(
-            config, track.name, length_padding=len(temporary_extension)
-        )
+        track_format_string = config["individual-track-format"]
+    track_format_dict = track.format_dict(maximum_track_number=maximum_track_number)
+    track_path = sanitize(
+        config,
+        track_format_string.format(**track_format_dict),
+        length_padding=len(temporary_extension),
+    )
 
     return os.path.join(
-        config["output-directory"], artist_path, album_path, disc_path, file_path
+        config["output-directory"], artist_path, album_path, disc_path, track_path
     )
 
 

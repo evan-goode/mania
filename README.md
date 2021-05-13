@@ -61,6 +61,37 @@ Available options are:
 - `skip-metadata`: don't download cover art or set tags. Not sure why someone would want this. Overrides `replay-gain`. Default value is `false`.
 - `replay-gain`: tag FLAC files with [ReplayGain](https://en.wikipedia.org/wiki/ReplayGain) data from TIDAL (for normalization). Overridden by `skip-metadata`. Default value is `true`.
 - `include-eps-singles`: include EPs and singles when downloading discographies with `mania artist`. Default value is `false`; prolific artists can have a _lot_ of singles/remixes and often you just want the studio albums.
+- `track-format`: filename format for tracks. Default value is `{track_number} {track_name}`.
+- `individual-track-format`: filename format for tracks when a track is downloaded without the rest of the album. `full-structure` will force the use of the long format. Default value is `{track_name}`
+- `album-format`: filename format for albums. Default value is `{album_name}`.
+- `individual-album-format`: filename format for albums when an album is downloaded without the rest of the artist's discography. `full-structure` will force the use of the long format. Default value is `{album_name}`, the same as the default `album-format`. These options are kept distinct in case you want to, for example, include the year only for albums in a discography.
+
+### Formatting Variables
+
+The following variables are available for use in the `*-format` options. All are surrounded with `{}`:
+
+- `{track_id}`: the ID of the track in TIDAL
+- `{track_name}`
+- `{track_artists}`: ", "-delimited list of artists
+- `{track_first_artist}`: the first listed artist
+- `{track_number}`: number of the track in the album. Automatically zero-padded according to the total number of tracks.
+- `{album_id}`: the ID of the album in TIDAL
+- `{album_name}`
+- `{album_artists}`: comma +  delimited list of album artists
+- `{album_first_artist}`: the first listed album artist
+- `{album_year}`: the year of release, or `Unknown Year`
+
+For example:
+
+```
+mania track the great gig in the sky --lucky --individual-track-format "{track_artists} - {track_name} ({album_year})"
+```
+
+will download:
+
+```
+Pink Floyd - The Great Gig in the Sky (1973).flac
+```
 
 ## License
 

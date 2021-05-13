@@ -39,6 +39,15 @@ class Album(NamedTuple):
     cover_url: Optional[str]
     best_available_quality: str
 
+    def format_dict(self):
+        return {
+            "album_id": self.id,
+            "album_name": self.name,
+            "album_artists": ", ".join(artist.name for artist in self.artists),
+            "album_first_artist": self.artists[0].name,
+            "album_year": self.year or "Unknown Year",
+        }
+
 
 class Track(NamedTuple):
     """A track with an album and one or more artists"""
@@ -54,6 +63,17 @@ class Track(NamedTuple):
     best_available_quality: str
     replay_gain: Optional[float]
     file_extension: str
+
+    def format_dict(self, maximum_track_number=0):
+        track_number = str(self.track_number).zfill(len(str(maximum_track_number)))
+        return {
+            "track_id": self.id,
+            "track_name": self.name,
+            "track_artists": ", ".join(artist.name for artist in self.artists),
+            "track_first_artist": self.artists[0].name,
+            "track_number": track_number,
+            **self.album.format_dict(),
+        }
 
 
 Media = Union[Track, Album, Artist]
