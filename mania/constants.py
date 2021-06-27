@@ -28,7 +28,7 @@ skip-metadata = false
 replay-gain = true
 include-eps-singles = false
 
-track-format = "{track_number}"
+track-format = "{track_number} {track_name}"
 individual-track-format = "{track_name}"
 
 album-format = "{album_name}"
