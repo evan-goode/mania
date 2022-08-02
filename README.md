@@ -1,4 +1,7 @@
-# Mania 👻
+# ⚠️ No longer maintained.
+Check out https://github.com/yarrm80s/orpheusdl and https://github.com/Dniel97/orpheusdl-tidal instead.
+
+## Mania 👻
 
 Mania is a command-line tool for downloading music from [TIDAL](https://tidal.com). It is intended for educational and private use only, and **not** as a tool for pirating and distributing music.
 
